@@ -1,0 +1,4 @@
+[submodule "omarchy"]
+	path = omarchy
+	url = git@github.com:basecamp/omarchy.git
+	branch = master
