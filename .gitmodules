@@ -1,0 +1,4 @@
+[submodule "omarchy"]
+	path = omarchy
+	url = git@github.com:boerngen-schmidt/omarchy.git
+	branch = base/v1.0
