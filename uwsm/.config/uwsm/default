@@ -1,0 +1,9 @@
+# Changes require a restart to take effect.
+# This is the default configuration and can be changed per compositor
+# see: https://github.com/Vladimir-csp/uwsm?tab=readme-ov-file#4-environments-and-shell-profile
+
+# Install other terminals via Install > Terminal
+export TERMINAL=xdg-terminal-exec
+
+# Use code for VSCode
+export EDITOR=nvim

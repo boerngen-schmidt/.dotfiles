@@ -1,3 +1,5 @@
-README.md
-.git
-.gitignore
+\.git
+\.gitignore
+\.gitmodules
+^/README.md
+^/omarchy

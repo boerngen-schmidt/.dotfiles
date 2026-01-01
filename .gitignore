@@ -1,4 +1,4 @@
 # Ignore system-specific files
-.history
-.local
-.cache
+/.history
+/.local
+/.cache

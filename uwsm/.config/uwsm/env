@@ -1,0 +1,8 @@
+# Changes require a restart to take effect.
+
+# Ensure Omarchy bins are in the path
+export HELPERS_PATH=$HOME/.local/share/desktop
+export PATH=$HELPERS_PATH/bin:$PATH
+
+# Set default terminal and editor
+source ~/.config/uwsm/default
