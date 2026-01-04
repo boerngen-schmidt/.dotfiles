@@ -1,0 +1,36 @@
+---
+- name: Deploy dotfiles with stow
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  vars_prompt:
+    - name: stow_user
+      prompt: "Username to stow for"
+      private: no
+
+  vars:
+    stow_packages:
+      - alacritty
+      - bash
+      - desktop
+      - elephant
+      - git
+      - hyprland
+      - mako
+      - swayosd
+      - uwsm
+      - walker
+      - waybar
+      - xcompose
+      - xdg
+
+  tasks:
+    - name: Stow each module
+      become: yes
+      become_user: "{{ stow_user }}"
+      command: stow -t /home/{{ stow_user }} -S {{ item }}
+      args:
+        chdir: "{{ playbook_dir }}"
+      loop: "{{ stow_packages }}"
+      when: stow_packages | length > 0
