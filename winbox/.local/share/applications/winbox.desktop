@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=WinBox
+Comment=GUI administration for Mikrotik RouterOS
+Exec=$HOME/.local/bin/winbox
+Icon=winbox
+Terminal=false
+Categories=Utility
+StartupWMClass=winbox
