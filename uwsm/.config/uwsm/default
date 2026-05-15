@@ -7,3 +7,26 @@ export TERMINAL=xdg-terminal-exec
 
 # Use code for VSCode
 export EDITOR=nvim
+
+# Cursor
+export XCURSOR_SIZE=24
+export XCURSOR_THEME=Adwaita
+export HYPRCURSOR_SIZE=24
+export HYPRCURSOR_THEME=Adwaita
+
+
+# Force all apps to use Wayland
+export GDK_BACKEND="wayland,x11,*"
+export QT_QPA_PLATFORM="wayland;xcb"
+export QT_STYLE_OVERRIDE=kvantum
+export SDL_VIDEODRIVER=wayland
+export MOZ_ENABLE_WAYLAND=1
+export ELECTRON_OZONE_PLATFORM_HINT=wayland
+export OZONE_PLATFORM=wayland
+export XDG_SESSION_TYPE=wayland
+
+# Scaling
+export GDK_SCALE=1
+export GDK_DPI_SCALE=1
+export QT_AUTO_SCREEN_SCALE_FACTOR=1
+export QT_SCALE_FACTOR=1
