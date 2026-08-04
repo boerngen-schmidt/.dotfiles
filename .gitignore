@@ -2,3 +2,8 @@
 /.history
 /.local
 /.cache
+
+# Hyprland auto-regenerates this stub at the canonical path whenever it
+# starts with a Lua config and finds no hyprland.conf there. hyprland.lua
+# is the real, authoritative config.
+/hyprland/.config/hypr/hyprland.conf
