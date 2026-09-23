@@ -9,3 +9,6 @@ source ~/.local/share/bash/rc
 #
 # Make an alias for invoking commands you use constantly
 # alias p='python'
+
+# Shared ssh-agent from the systemd user socket (ssh-agent.socket)
+export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket"
