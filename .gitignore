@@ -7,3 +7,8 @@
 # starts with a Lua config and finds no hyprland.conf there. hyprland.lua
 # is the real, authoritative config.
 /hyprland/.config/hypr/hyprland.conf
+
+# ~/.ssh also holds private keys and known_hosts: only the main config may be
+# committed. Personal and host-specific includes in config.d stay local.
+/ssh/.ssh/*
+!/ssh/.ssh/config
