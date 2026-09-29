@@ -12,3 +12,6 @@ source ~/.local/share/bash/rc
 
 # Shared ssh-agent from the systemd user socket (ssh-agent.socket)
 export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket"
+
+# Let pinentry prompt on this terminal when no graphical dialog is available
+export GPG_TTY=$(tty)
