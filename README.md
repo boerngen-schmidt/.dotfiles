@@ -41,7 +41,7 @@ Apply a theme once on a new machine (no running shell needed):
 
 ```bash
 DESKTOP_SHELL_PATH=~/.local/share/desktop PATH=~/.local/share/desktop/bin:$PATH \
-  THEME_HEADLESS=1 omarchy-theme-set tokyo-night
+  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set tokyo-night
 ```
 
 To see what changed upstream since the fork, rebrand a newer tag the same way
