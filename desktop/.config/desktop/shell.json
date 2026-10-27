@@ -32,17 +32,11 @@
         },
         {
           "id": "omarchy.weather"
-        },
-        {
-          "id": "omarchy.system-update"
         }
       ],
       "right": [
         {
           "id": "omarchy.tray"
-        },
-        {
-          "id": "omarchy.agents"
         },
         {
           "id": "omarchy.bluetooth"
@@ -62,5 +56,14 @@
       ]
     }
   },
-  "plugins": []
+  "plugins": [],
+  "disabledPlugins": [
+    "omarchy.clipboard",
+    "omarchy.dev-gallery",
+    "omarchy.disk-speedtest",
+    "omarchy.emojis",
+    "omarchy.reminders",
+    "omarchy.speedtest",
+    "omarchy.wifiqr"
+  ]
 }

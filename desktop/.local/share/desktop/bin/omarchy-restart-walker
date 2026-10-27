@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Restart the walker service so it picks up the theme's generated walker.css.
+# Not part of Omarchy v4, which dropped walker; called by omarchy-theme-set.
+
+if pgrep -x walker >/dev/null; then
+  pkill -x walker
+  setsid uwsm app -- walker --gapplication-service >/dev/null 2>&1 &
+fi
