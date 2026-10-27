@@ -1,9 +1,7 @@
 # Packages stowed into $HOME by the benstop Ansible playbook (playbooks/user.yml).
 # One package directory per line; blank lines and lines starting with # are ignored.
 alacritty
-ashell
 bash
-batsignal
 chromium
 desktop
 elephant
@@ -11,13 +9,10 @@ environment
 git
 gnupg
 hyprland
-mako
 mpv
 ssh
-swayosd
 uwsm
 walker
-waybar
 winbox
 wireplumber
 xcompose
