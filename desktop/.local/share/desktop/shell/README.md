@@ -102,7 +102,7 @@ The full schema lives in `services/PluginRegistry.qml`.
 ## Installing a third-party plugin
 
 A plugin is a **git repo** with a `manifest.json` at its root. Adding one
-clones it straight into `~/.config/omarchy/plugins/<id>/` (named by the
+clones it straight into `~/.config/desktop/plugins/<id>/` (named by the
 manifest id); updating is a fast-forward pull of that checkout.
 
 ```bash
@@ -132,7 +132,7 @@ an installed plugin is a plain git checkout, anything beyond add/update
 
 You can still drop a plugin in without git:
 
-1. Put it in `~/.config/omarchy/plugins/<plugin-id>/` with a `manifest.json`
+1. Put it in `~/.config/desktop/plugins/<plugin-id>/` with a `manifest.json`
    plus the QML referenced from its `entryPoints`.
 2. `omarchy-shell shell rescanPlugins`.
 3. `omarchy plugin enable <id>`. Bar widgets start in
@@ -161,7 +161,7 @@ the interactive picker, then opens the new `<username>.*` directory in `$EDITOR`
 Existing shortcuts and shell IPC calls made to the built-in id are routed to
 the enabled clone, so cloning does not require changing its callers. Removing
 an active clone switches back to its built-in source.
-Saving a file anywhere under `~/.config/omarchy/plugins/` reloads plugin code
+Saving a file anywhere under `~/.config/desktop/plugins/` reloads plugin code
 automatically; `omarchy-shell shell rescanPlugins` remains available to force a reload.
 
 First-party plugins under `shell/plugins/` are discovered the same way and load
@@ -185,18 +185,18 @@ running a separate Quickshell instance.
 | `toggle <id> <payloadJson>`              | —       | summon if closed, hide if open                        |
 | `call <id> <method> <arg>`               | string  | call a method on an already-loaded plugin             |
 | `rescanPlugins`                          | —       | re-walk plugin dirs and hot-reload plugin code        |
-| `reloadConfig`                           | `ok`    | reload `~/.config/omarchy/shell.json`                 |
+| `reloadConfig`                           | `ok`    | reload `~/.config/desktop/shell.json`                 |
 | `setPluginEnabled <id> <enabled>`        | `ok` / `unknown` | flip the persisted enabled bit (see note)    |
 | `listPlugins`                            | JSON    | every discovered plugin, sorted by name               |
 
 Direct invocation:
 
 ```
-quickshell ipc -p $OMARCHY_PATH/shell call shell ping
+quickshell ipc -p $DESKTOP_SHELL_PATH/shell call shell ping
 ```
 
 Hyprland autostart launches the shell directly with `quickshell -p
-$OMARCHY_PATH/shell`. Use `omarchy-restart-shell` to stop every running
+$DESKTOP_SHELL_PATH/shell`. Use `omarchy-restart-shell` to stop every running
 instance of that config and launch one fresh shell process.
 
 A convenience wrapper, [`omarchy-shell`](../bin/omarchy-shell), forwards IPC
@@ -221,8 +221,8 @@ customization from the shipped defaults lives in it.
 
 | Path                              | Owner          | Purpose                                                |
 |-----------------------------------|----------------|--------------------------------------------------------|
-| `~/.config/omarchy/shell.json`    | the shell      | full layout + per-entry settings + enabled plugin list |
-| `~/.config/omarchy/plugins/<id>/` | user           | drop-in third-party plugin source files                |
+| `~/.config/desktop/shell.json`    | the shell      | full layout + per-entry settings + enabled plugin list |
+| `~/.config/desktop/plugins/<id>/` | user           | drop-in third-party plugin source files                |
 
 The `config/omarchy/shell.json` default config describes the
 fresh-install state. When the user has no `shell.json`, the shell uses

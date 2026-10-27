@@ -2,7 +2,7 @@
 
 # omarchy:summary=Set the Plymouth boot theme colors and logo
 # omarchy:args=<background-hex> <text-hex> <path-to-logo.png>
-# omarchy:examples=omarchy plymouth set '#1d2021' '#ebdbb2' ~/.local/state/omarchy/current/theme/plymouth/logo.png
+# omarchy:examples=omarchy plymouth set '#1d2021' '#ebdbb2' ~/.local/state/desktop/current/theme/plymouth/logo.png
 # omarchy:requires-sudo=true
 
 set -euo pipefail
@@ -178,7 +178,7 @@ run_root_transaction() {
       quoted_source_root=${quoted_source_root//\"/\\\"}
       quoted_source_root=${quoted_source_root//\$/\\\$}
       quoted_source_root=${quoted_source_root//\`/\\\`}
-      expected_config_line="export OMARCHY_PATH=\"$quoted_source_root\""
+      expected_config_line="export DESKTOP_SHELL_PATH=\"$quoted_source_root\""
       mapfile -t omarchy_config_lines <"$omarchy_conf"
       (( ${#omarchy_config_lines[@]} == 1 ))
       [[ ${omarchy_config_lines[0]} == "$expected_config_line" ]]
@@ -361,7 +361,7 @@ run_root_transaction() {
       validate_trusted_directory "$sddm_dir"
       rm -f -- "$sddm_dir/logo.svg"
     fi
-  ' bash "$mode" "$OMARCHY_PATH" "$bg_hex" "$text_hex" "$((64 * 1024 * 1024))"
+  ' bash "$mode" "$DESKTOP_SHELL_PATH" "$bg_hex" "$text_hex" "$((64 * 1024 * 1024))"
 }
 
 if [[ $mode == "set" ]]; then

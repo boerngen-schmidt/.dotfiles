@@ -18,7 +18,7 @@ import "Model.js" as Model
 Item {
   id: root
 
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
+  property string omarchyPath: Quickshell.env("DESKTOP_SHELL_PATH")
   property var shell: null
   property var manifest: null
 

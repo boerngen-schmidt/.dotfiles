@@ -8,7 +8,7 @@ Item {
   id: root
 
   property var settings: ({})
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
+  property string omarchyPath: Quickshell.env("DESKTOP_SHELL_PATH")
 
   property bool installed: false
   property bool running: false

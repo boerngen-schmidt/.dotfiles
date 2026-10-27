@@ -28,9 +28,9 @@ while (($#)); do
   esac
 done
 
-OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
-STATE_DIR="${OMARCHY_MIGRATION_STATE:-$HOME/.local/state/omarchy/migrations}"
-MIGRATIONS_DIR="$OMARCHY_PATH/migrations"
+DESKTOP_SHELL_PATH="${DESKTOP_SHELL_PATH:-/usr/share/omarchy}"
+STATE_DIR="${OMARCHY_MIGRATION_STATE:-$HOME/.local/state/desktop/migrations}"
+MIGRATIONS_DIR="$DESKTOP_SHELL_PATH/migrations"
 
 migration_entries() {
   [[ -d $MIGRATIONS_DIR ]] || return 0
@@ -90,7 +90,7 @@ while IFS=$'\t' read -r name file marker <&3; do
 
   if [[ ! -f $marker ]]; then
     echo -e "\e[32m\nRunning migration (${name%.sh})\e[0m"
-    OMARCHY_PATH="$OMARCHY_PATH" bash -euo pipefail "$file" 3<&-
+    DESKTOP_SHELL_PATH="$DESKTOP_SHELL_PATH" bash -euo pipefail "$file" 3<&-
     mkdir -p "$(dirname "$marker")"
     touch "$marker"
   fi

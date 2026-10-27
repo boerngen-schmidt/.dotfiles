@@ -96,7 +96,7 @@ Panel {
   }
 
   property FileView locationFile: FileView {
-    path: Quickshell.env("HOME") + "/.local/state/omarchy/settings/weather.json"
+    path: Quickshell.env("HOME") + "/.local/state/desktop/settings/weather.json"
     watchChanges: true
     printErrors: false
     onFileChanged: reload()

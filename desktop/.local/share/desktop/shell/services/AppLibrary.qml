@@ -11,7 +11,7 @@ import "AppSearch.js" as AppSearch
 Item {
   id: root
 
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
+  property string omarchyPath: Quickshell.env("DESKTOP_SHELL_PATH")
 
   property var configuredHiddenEntryIds: ({})
   property var desktopHiddenEntryIds: ({})

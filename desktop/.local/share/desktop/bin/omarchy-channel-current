@@ -4,10 +4,10 @@
 
 set -euo pipefail
 
-# Dev is a linked source checkout: OMARCHY_PATH points somewhere other than
+# Dev is a linked source checkout: DESKTOP_SHELL_PATH points somewhere other than
 # the package-backed install at /usr/share/omarchy. This takes precedence over
 # the package channels, since the checkout overrides whatever is installed.
-if [[ $OMARCHY_PATH != "/usr/share/omarchy" ]]; then
+if [[ $DESKTOP_SHELL_PATH != "/usr/share/omarchy" ]]; then
   echo dev
   exit 0
 fi

@@ -3,9 +3,9 @@
 # omarchy:summary=Generate themed config files from Omarchy templates
 # omarchy:hidden=true
 
-TEMPLATES_DIR="$OMARCHY_PATH/default/themed"
-USER_TEMPLATES_DIR="$HOME/.config/omarchy/themed"
-NEXT_THEME_DIR="$HOME/.local/state/omarchy/current/next-theme"
+TEMPLATES_DIR="$DESKTOP_SHELL_PATH/default/themed"
+USER_TEMPLATES_DIR="$HOME/.config/desktop/themed"
+NEXT_THEME_DIR="$HOME/.local/state/desktop/current/next-theme"
 COLORS_FILE="$NEXT_THEME_DIR/colors.toml"
 
 declare -A THEME_COLORS

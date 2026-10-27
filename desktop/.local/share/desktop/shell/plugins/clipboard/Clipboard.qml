@@ -10,7 +10,7 @@ import "ClipboardHistory.js" as ClipboardHistory
 Item {
   id: root
 
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
+  property string omarchyPath: Quickshell.env("DESKTOP_SHELL_PATH")
   property bool opened: false
   property string filterText: ""
   property int selectedIndex: 0
@@ -18,7 +18,7 @@ Item {
   property bool clearConfirmOpen: false
   property var history: []
 
-  property string historyPath: Quickshell.env("HOME") + "/.local/state/omarchy/clipboard-history.json"
+  property string historyPath: Quickshell.env("HOME") + "/.local/state/desktop/clipboard-history.json"
   property string captureScript: root.omarchyPath + "/shell/plugins/clipboard/capture.sh"
   // Shares the [menu] surface tokens — themes that style the menu also
   // style the clipboard. Selected-row colors composed in the

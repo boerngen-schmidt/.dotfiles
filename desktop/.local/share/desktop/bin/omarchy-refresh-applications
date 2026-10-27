@@ -4,14 +4,14 @@
 
 # Copy .desktop declarations
 mkdir -p ~/.local/share/applications
-cp "$OMARCHY_PATH"/applications/*.desktop ~/.local/share/applications/
+cp "$DESKTOP_SHELL_PATH"/applications/*.desktop ~/.local/share/applications/
 
 if omarchy-cmd-present alacritty; then
-  cp "$OMARCHY_PATH/default/alacritty/Alacritty.desktop" ~/.local/share/applications/
+  cp "$DESKTOP_SHELL_PATH/default/alacritty/Alacritty.desktop" ~/.local/share/applications/
 fi
 
-if [[ -f "$OMARCHY_PATH/install/user/mise.sh" ]]; then
-  bash "$OMARCHY_PATH/install/user/mise.sh"
+if [[ -f "$DESKTOP_SHELL_PATH/install/user/mise.sh" ]]; then
+  bash "$DESKTOP_SHELL_PATH/install/user/mise.sh"
 fi
 
 update-desktop-database ~/.local/share/applications

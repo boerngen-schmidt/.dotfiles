@@ -11,8 +11,8 @@ if [[ -z $theme ]]; then
   exit 1
 fi
 
-if [[ -d $HOME/.config/omarchy/themes/$theme ]]; then
-  echo "$HOME/.config/omarchy/themes/$theme"
+if [[ -d $HOME/.config/desktop/themes/$theme ]]; then
+  echo "$HOME/.config/desktop/themes/$theme"
 else
-  echo "$OMARCHY_PATH/themes/$theme"
+  echo "$DESKTOP_SHELL_PATH/themes/$theme"
 fi

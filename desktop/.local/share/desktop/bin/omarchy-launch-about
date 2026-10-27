@@ -8,8 +8,8 @@
 # it instead of resizing after the first paint. Bash defers WINCH traps while read
 # blocks, so poll for size changes and re-render fastfetch whenever it is resized.
 
-LOGO_FILE="$HOME/.config/omarchy/branding/about.txt"
-FIT_FILE="$HOME/.local/state/omarchy/windows/about.fit"
+LOGO_FILE="$HOME/.config/desktop/branding/about.txt"
+FIT_FILE="$HOME/.local/state/desktop/windows/about.fit"
 
 # A user-level fastfetch config can relocate or restyle the logo in ways this
 # measurement cannot see, so leave sizing to the float rule in that case.

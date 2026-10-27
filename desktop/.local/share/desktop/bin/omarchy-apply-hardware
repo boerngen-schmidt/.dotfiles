@@ -66,10 +66,10 @@ else
 fi
 
 export OMARCHY_INSTALL_USER="$install_user"
-export OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
-export OMARCHY_INSTALL="${OMARCHY_INSTALL:-$OMARCHY_PATH/install}"
+export DESKTOP_SHELL_PATH="${DESKTOP_SHELL_PATH:-/usr/share/omarchy}"
+export OMARCHY_INSTALL="${OMARCHY_INSTALL:-$DESKTOP_SHELL_PATH/install}"
 export OMARCHY_INSTALL_LOG_FILE="${OMARCHY_INSTALL_LOG_FILE:-/var/log/omarchy-install.log}"
-export PATH="$OMARCHY_PATH/bin:$PATH"
+export PATH="$DESKTOP_SHELL_PATH/bin:$PATH"
 
 source "$OMARCHY_INSTALL/helpers/logging.sh"
 source "$OMARCHY_INSTALL/hardware/all.sh"

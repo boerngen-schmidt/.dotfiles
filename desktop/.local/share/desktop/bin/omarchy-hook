@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Run a named hook from ~/.config/omarchy/hooks/<name> and ~/.config/omarchy/hooks/<name>.d/.
+# omarchy:summary=Run a named hook from ~/.config/desktop/hooks/<name> and ~/.config/desktop/hooks/<name>.d/.
 # omarchy:args=[name] [args...]
 
 set -e
@@ -11,7 +11,7 @@ if (( $# < 1 )); then
 fi
 
 HOOK=$1
-HOOK_PATH="$HOME/.config/omarchy/hooks/$1"
+HOOK_PATH="$HOME/.config/desktop/hooks/$1"
 HOOK_DIR="$HOOK_PATH.d"
 shift
 

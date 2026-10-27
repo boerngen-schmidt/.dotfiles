@@ -19,7 +19,7 @@ For shipped configs see /etc/skel (new users) and omarchy-reinstall-configs
 --first-install is used by the ISO in the target chroot. It marks shipped
 migrations complete for the freshly-created user.
 
-Idempotency marker: ~/.local/state/omarchy/done/finalize-user
+Idempotency marker: ~/.local/state/desktop/done/finalize-user
 USAGE
 }
 
@@ -53,7 +53,7 @@ while (($#)); do
   esac
 done
 
-state_dir="$HOME/.local/state/omarchy"
+state_dir="$HOME/.local/state/desktop"
 mkdir -p "$state_dir"
 
 if omarchy-done check finalize-user && (( force == 0 )); then
@@ -61,10 +61,10 @@ if omarchy-done check finalize-user && (( force == 0 )); then
   exit 0
 fi
 
-export OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
-export OMARCHY_INSTALL="${OMARCHY_INSTALL:-$OMARCHY_PATH/install}"
+export DESKTOP_SHELL_PATH="${DESKTOP_SHELL_PATH:-/usr/share/omarchy}"
+export OMARCHY_INSTALL="${OMARCHY_INSTALL:-$DESKTOP_SHELL_PATH/install}"
 export OMARCHY_SETUP_CONTEXT="${OMARCHY_SETUP_CONTEXT:-runtime}"
-export PATH="$OMARCHY_PATH/bin:$PATH"
+export PATH="$DESKTOP_SHELL_PATH/bin:$PATH"
 
 if (( first_install )) && [[ $OMARCHY_SETUP_CONTEXT == "runtime" ]]; then
   # The ISO chroot doesn't set a context; omarchy-provision-owner runs first-install
@@ -81,11 +81,11 @@ else
   }
 fi
 
-# Dev-aware skill symlinks. Cannot live in /etc/skel because OMARCHY_PATH may
+# Dev-aware skill symlinks. Cannot live in /etc/skel because DESKTOP_SHELL_PATH may
 # point at a dev checkout (omarchy dev link) where the target differs.
 # Loops every skill directory, so shipping a new one needs no edit here.
 mkdir -p ~/.agents/skills ~/.claude/skills ~/.codex/skills ~/.pi/agent/skills ~/.hermes/skills
-for skill in "$OMARCHY_PATH"/default/agents/skills/*/; do
+for skill in "$DESKTOP_SHELL_PATH"/default/agents/skills/*/; do
   skill=${skill%/}
   name=${skill##*/}
   ln -sfn "$skill" ~/.agents/skills/"$name"
@@ -121,7 +121,7 @@ xdg-mime default HEY.desktop x-scheme-handler/mailto
 
 if (( first_install )); then
   mkdir -p "$state_dir/migrations"
-  for migration in "$OMARCHY_PATH"/migrations/*.sh; do
+  for migration in "$DESKTOP_SHELL_PATH"/migrations/*.sh; do
     [[ -f $migration ]] && touch "$state_dir/migrations/$(basename "$migration")"
   done
 fi

@@ -28,5 +28,5 @@ else
   # Schedule the shutdown in the user manager so closing the terminal's systemd
   # scope cannot terminate it before it runs.
   systemd-run --user --collect --quiet --property=Type=exec --property=RuntimeMaxSec=30s \
-    "$OMARCHY_PATH/bin/omarchy-system-shutdown" --inhibit
+    "$DESKTOP_SHELL_PATH/bin/omarchy-system-shutdown" --inhibit
 fi

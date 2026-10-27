@@ -5,5 +5,5 @@
 
 set -euo pipefail
 
-"$OMARCHY_PATH/bin/omarchy-refresh-plymouth"
-"$OMARCHY_PATH/bin/omarchy-refresh-sddm"
+"$DESKTOP_SHELL_PATH/bin/omarchy-refresh-plymouth"
+"$DESKTOP_SHELL_PATH/bin/omarchy-refresh-sddm"

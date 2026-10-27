@@ -9,13 +9,13 @@ if [[ -z $1 ]]; then
   exit 1
 fi
 
-CURRENT_THEME_PATH="$HOME/.local/state/omarchy/current/theme"
-NEXT_THEME_PATH="$HOME/.local/state/omarchy/current/next-theme"
-CURRENT_BACKGROUND_LINK="$HOME/.local/state/omarchy/current/background"
-BACKGROUND_TRANSITION_CACHE="$HOME/.cache/omarchy/background-transitions"
+CURRENT_THEME_PATH="$HOME/.local/state/desktop/current/theme"
+NEXT_THEME_PATH="$HOME/.local/state/desktop/current/next-theme"
+CURRENT_BACKGROUND_LINK="$HOME/.local/state/desktop/current/background"
+BACKGROUND_TRANSITION_CACHE="$HOME/.cache/desktop/background-transitions"
 THEME_SET_LOCK="${XDG_RUNTIME_DIR:-/tmp}/omarchy-theme-set.lock"
-USER_THEMES_PATH="$HOME/.config/omarchy/themes"
-OMARCHY_THEMES_PATH="$OMARCHY_PATH/themes"
+USER_THEMES_PATH="$HOME/.config/desktop/themes"
+OMARCHY_THEMES_PATH="$DESKTOP_SHELL_PATH/themes"
 
 # What a theme installed from a git repo may not ship, because these run code.
 # Hyprland requires a theme's hyprland.lua and gum_env.lua at login and Neovim
@@ -75,7 +75,7 @@ choose_theme_background() {
 
   CHOSEN_THEME_BACKGROUND=""
   mapfile -d '' -t backgrounds < <(
-    find -L "$HOME/.config/omarchy/backgrounds/$THEME_NAME/" "$CURRENT_THEME_PATH/backgrounds/" -maxdepth 1 -type f \
+    find -L "$HOME/.config/desktop/backgrounds/$THEME_NAME/" "$CURRENT_THEME_PATH/backgrounds/" -maxdepth 1 -type f \
       \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.bmp' -o -iname '*.webp' \) \
       -print0 2>/dev/null | sort -z
   )
@@ -196,7 +196,7 @@ stage_installed_dir() {
   done
 }
 
-# `omarchy theme install` clones into ~/.config/omarchy/themes, so a .git
+# `omarchy theme install` clones into ~/.config/desktop/themes, so a .git
 # directory there means the contents came from a stranger and are held to the
 # list above. A directory the user wrote themselves, and a symlink to their own
 # working copy, are theirs to fill however they like -- the same distinction
@@ -293,7 +293,7 @@ rm -rf "$CURRENT_THEME_PATH"
 mv "$NEXT_THEME_PATH" "$CURRENT_THEME_PATH"
 
 # Store theme name for reference
-echo "$THEME_NAME" >"$HOME/.local/state/omarchy/current/theme.name"
+echo "$THEME_NAME" >"$HOME/.local/state/desktop/current/theme.name"
 
 # Make the running shell pick up the new palette immediately while the rest of
 # the theme hooks run.

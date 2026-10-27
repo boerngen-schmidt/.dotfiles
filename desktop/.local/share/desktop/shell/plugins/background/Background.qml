@@ -13,7 +13,7 @@ Item {
 
   readonly property string home: Quickshell.env("HOME")
   readonly property string stateHome: home + "/.local/state"
-  readonly property string currentBackgroundLink: stateHome + "/omarchy/current/background"
+  readonly property string currentBackgroundLink: stateHome + "/desktop/current/background"
 
   property string currentBackground: ""
   property string displayedBackground: ""

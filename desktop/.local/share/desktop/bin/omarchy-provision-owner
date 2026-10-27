@@ -14,7 +14,7 @@
 set -euo pipefail
 
 PROVISIONING_DIR=/var/lib/omarchy/provisioning
-OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
+DESKTOP_SHELL_PATH="${DESKTOP_SHELL_PATH:-/usr/share/omarchy}"
 LOG_FILE=/var/log/omarchy-provision-owner.log
 
 if (( EUID != 0 )); then
@@ -31,19 +31,19 @@ if [[ -f $PROVISIONING_DIR/wipe-pending ]]; then
   exit 1
 fi
 
-export PATH="$OMARCHY_PATH/bin:$PATH"
+export PATH="$DESKTOP_SHELL_PATH/bin:$PATH"
 
 # The shared setup form — the same questions, prompts, and validation the ISO
 # configurator's user step asks. The ISO vendors this very file out of the
 # runtime package it bundles, so an install and the first boot that finishes it
 # can never offer different layouts or accept different usernames.
-source "$OMARCHY_PATH/install/provisioning/setup-form.sh"
+source "$DESKTOP_SHELL_PATH/install/provisioning/setup-form.sh"
 
 # Unlike a fresh install target, this machine already has accounts; a pinned
 # resume (below) bypasses the prompt entirely.
 omarchy_username_taken() { getent passwd "$1" >/dev/null; }
 
-LOGO_PATH="$OMARCHY_PATH/logo.txt"
+LOGO_PATH="$DESKTOP_SHELL_PATH/logo.txt"
 LOGO_WIDTH=$(awk '{ if (length > max) max = length } END { print max+0 }' "$LOGO_PATH" 2>/dev/null || echo 0)
 LOGO_HEIGHT=$(wc -l <"$LOGO_PATH" 2>/dev/null || echo 0)
 (( LOGO_WIDTH > 0 )) || LOGO_WIDTH=81
@@ -319,7 +319,7 @@ SETUP_PHASE_T0=0
 SETUP_T0=0
 NOW=0
 FINALIZE_BASE=-1
-FINALIZE_TOTAL=$(grep -c '^run_logged' "$OMARCHY_PATH/install/user/all.sh" 2>/dev/null || echo 0)
+FINALIZE_TOTAL=$(grep -c '^run_logged' "$DESKTOP_SHELL_PATH/install/user/all.sh" 2>/dev/null || echo 0)
 
 # Whether this boot will re-key LUKS (encrypted installs stage a throwaway key).
 # The re-key rebuilds the UKI and is the slowest single step, so it needs a wide
@@ -747,7 +747,7 @@ create_user() {
   echo "%wheel ALL=(ALL:ALL) ALL" >/etc/sudoers.d/00-omarchy-wheel
   chmod 440 /etc/sudoers.d/00-omarchy-wheel
 
-  source "$OMARCHY_PATH/install/helpers/browser-policy.sh"
+  source "$DESKTOP_SHELL_PATH/install/helpers/browser-policy.sh"
   for dir in "${BROWSER_POLICY_MANAGED_DIRS[@]}"; do
     [[ -d $dir || -L $dir ]] || continue
     browser_policy_setup_dir "$dir"
@@ -841,14 +841,14 @@ finalize_user() {
     USER="$username" \
     LOGNAME="$username" \
     SHELL="${shell:-/bin/bash}" \
-    OMARCHY_PATH="$OMARCHY_PATH" \
-    OMARCHY_INSTALL="$OMARCHY_PATH/install" \
+    DESKTOP_SHELL_PATH="$DESKTOP_SHELL_PATH" \
+    OMARCHY_INSTALL="$DESKTOP_SHELL_PATH/install" \
     OMARCHY_SETUP_CONTEXT=provision-owner \
     OMARCHY_USER_NAME="$full_name" \
     OMARCHY_USER_EMAIL="$email_address" \
     OMARCHY_INSTALL_LOG_FILE="$LOG_FILE" \
     OMARCHY_LOG_TO_STDOUT=1 \
-    "$OMARCHY_PATH/bin/omarchy-provision-user" --force --first-install
+    "$DESKTOP_SHELL_PATH/bin/omarchy-provision-user" --force --first-install
 }
 
 # Move the LUKS volume from the throwaway install passphrase to the user's
@@ -967,8 +967,8 @@ reset_limine_config() {
     old_ids=$(grep -o 'machine-id=[0-9a-f]\{32\}' "$esp/limine.conf" | cut -d= -f2 | sort -u || true)
   fi
 
-  for template in "$OMARCHY_PATH/install/assets/limine/limine.conf" \
-                  "$OMARCHY_PATH/default/limine/limine.conf"; do
+  for template in "$DESKTOP_SHELL_PATH/install/assets/limine/limine.conf" \
+                  "$DESKTOP_SHELL_PATH/default/limine/limine.conf"; do
     if [[ -f $template ]]; then
       cp "$template" "$esp/limine.conf"
       found=1

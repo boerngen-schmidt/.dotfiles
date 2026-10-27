@@ -19,7 +19,7 @@ prompt_reboot=1
 # package does not ship yet fails outright, and one it does ship silently runs
 # the packaged copy while every unprivileged call runs the checkout. Prepending
 # the checkout's bin keeps root on the code being edited — the same trust the
-# link already extends to every system script Omarchy runs out of $OMARCHY_PATH.
+# link already extends to every system script Omarchy runs out of $DESKTOP_SHELL_PATH.
 sudoers_file="/etc/sudoers.d/omarchy-dev-path"
 system_secure_path="/usr/local/sbin:/usr/local/bin:/usr/bin"
 
@@ -27,11 +27,11 @@ if (( $# < 1 || $# > 2 )) || [[ $1 == "-h" || $1 == "--help" ]]; then
   cat <<USAGE
 Usage: omarchy dev link <path-to-checkout> [--no-reboot]
 
-Writes /etc/omarchy.conf so OMARCHY_PATH resolves to <path-to-checkout>
+Writes /etc/omarchy.conf so DESKTOP_SHELL_PATH resolves to <path-to-checkout>
 after reboot. This intentionally does not rewrite the running Hyprland,
 systemd, shell, or app-launcher environment; reboot to make every layer agree.
 
-Affects only \$OMARCHY_PATH-resolved trees: bin/, default/, shell/,
+Affects only \$DESKTOP_SHELL_PATH-resolved trees: bin/, default/, shell/,
 themes/, applications/, config/. Files installed at fixed system paths
 (/etc/, /usr/lib/systemd/, udev rule bodies, /etc/skel after user
 creation) are NOT covered — for those, use omarchy-dev-pkg-test to build
@@ -107,7 +107,7 @@ if ! visudo -cf "$staged_sudoers" >/dev/null; then
 fi
 
 {
-  printf 'export OMARCHY_PATH='
+  printf 'export DESKTOP_SHELL_PATH='
   omarchy_conf_quote "$target"
   printf '\n'
 } | sudo tee /etc/omarchy.conf >/dev/null

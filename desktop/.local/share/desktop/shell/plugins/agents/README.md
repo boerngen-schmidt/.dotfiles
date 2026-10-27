@@ -2,7 +2,7 @@
 
 One bar icon and one panel for every AI coding subscription on the machine.
 The panel is strictly a display: it watches the usage records that
-`omarchy-agent-usage-update` writes to `~/.local/state/omarchy/agents/usage/`
+`omarchy-agent-usage-update` writes to `~/.local/state/desktop/agents/usage/`
 and draws whatever appears there. `Panel.qml` owns the bar button and the
 popup; `Main.qml` discovers and watches the records (and handles the optional
 cross-device aggregation); `Agent.qml` is the per-record file watcher.
@@ -38,7 +38,7 @@ its own the first time a scan finds usage. Drop it with
 
 ## Data
 
-Each agent is one JSON record in `~/.local/state/omarchy/agents/usage/`,
+Each agent is one JSON record in `~/.local/state/desktop/agents/usage/`,
 written by `omarchy-agent-usage-update`. That command runs one
 `omarchy-agent-usage-<agent>` collector per agent; the widget invokes it
 on its refresh timer and whenever you ask for a refresh, and picks up any
@@ -72,7 +72,7 @@ August 2026 no console-issued API key passes it — Fireworks appears to
 reserve it for the dashboard session. The probe stays because it is cheap
 and the live figure lights up automatically if Fireworks ever opens it to
 keys. Until then the collector falls back to estimating the balance from
-configuration in `~/.config/omarchy/agents/fireworks.json`:
+configuration in `~/.config/desktop/agents/fireworks.json`:
 
 ```json
 {
@@ -101,7 +101,7 @@ only adds the meter and the spent-of-funded line under the real figure.
 
 ## Settings
 
-Settings live in the widget's entry in `~/.config/omarchy/shell.json`. The
+Settings live in the widget's entry in `~/.config/desktop/shell.json`. The
 top-level keys can be set with
 `omarchy bar set omarchy.agents <key> <value>`:
 

@@ -12,8 +12,8 @@ import "BarModel.js" as BarModel
 Item {
   id: root
 
-  // The omarchy-shell host injects omarchyPath from OMARCHY_PATH.
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
+  // The omarchy-shell host injects omarchyPath from DESKTOP_SHELL_PATH.
+  property string omarchyPath: Quickshell.env("DESKTOP_SHELL_PATH")
   // Injected by the host shell so bar slots can resolve enabled widgets.
   property var barWidgetRegistry: fallbackBarWidgetRegistry
   // Read-only registry view for third-party full bars; the built-in bar does
@@ -42,7 +42,7 @@ Item {
   property bool barHidden: false
   property string home: Quickshell.env("HOME")
   property string stateHome: home + "/.local/state"
-  property string omarchyConfigDir: home + "/.config/omarchy"
+  property string omarchyConfigDir: home + "/.config/desktop"
   property var fallbackBarConfig: ({
     position: "top",
     transparent: false,
@@ -1115,7 +1115,7 @@ Item {
   }
 
   FileView {
-    path: root.stateHome + "/omarchy/current"
+    path: root.stateHome + "/desktop/current"
     watchChanges: true
     printErrors: false
     onFileChanged: root.scheduleTransparentForegroundRefresh()
@@ -1182,11 +1182,11 @@ Item {
   Process {
     id: barHiddenProbe
     running: true
-    command: ["bash", "-c", "[[ -f $HOME/.local/state/omarchy/toggles/bar-off ]] && echo yes || echo no"]
+    command: ["bash", "-c", "[[ -f $HOME/.local/state/desktop/toggles/bar-off ]] && echo yes || echo no"]
     stdout: SplitParser { onRead: function(line) { root.barHidden = String(line).trim() === "yes" } }
   }
   FileView {
-    path: root.home + "/.local/state/omarchy/toggles"
+    path: root.home + "/.local/state/desktop/toggles"
     watchChanges: true
     printErrors: false
     onFileChanged: barHiddenProbe.running = true

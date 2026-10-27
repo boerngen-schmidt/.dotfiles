@@ -29,7 +29,7 @@
 set -euo pipefail
 
 PROVISIONING_DIR=/var/lib/omarchy/provisioning
-OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
+DESKTOP_SHELL_PATH="${DESKTOP_SHELL_PATH:-/usr/share/omarchy}"
 TOP_MNT=/run/omarchy-system-factory-reset/top
 NEXT_NAME=@omarchy-reset-next
 LOG_FILE=/var/log/omarchy-system-factory-reset.log
@@ -42,7 +42,7 @@ if (( EUID != 0 )); then
   exec sudo env "${gum_env[@]}" "$0" "$@"
 fi
 
-export PATH="$OMARCHY_PATH/bin:$PATH"
+export PATH="$DESKTOP_SHELL_PATH/bin:$PATH"
 
 log() {
   echo "$1" | tee -a "$LOG_FILE" >/dev/null
@@ -274,7 +274,7 @@ rebuild_next_boot() {
       rm -f "$next/etc/mkinitcpio.conf.d/omarchy_resume.conf" \
         "$next/etc/limine-entry-tool.d/resume.conf"
     fi
-    if ! chroot "$next" env OMARCHY_PATH=/usr/share/omarchy \
+    if ! chroot "$next" env DESKTOP_SHELL_PATH=/usr/share/omarchy \
       /usr/bin/omarchy-hibernation-setup --force --no-rebuild >>"$LOG_FILE" 2>&1; then
       fail "hibernation setup failed in the factory root (see $LOG_FILE)"
     fi

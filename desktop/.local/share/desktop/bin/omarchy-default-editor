@@ -4,7 +4,7 @@
 # omarchy:args=[code|cursor|zed|sublime_text|helix|vim|emacs|nvim]
 # omarchy:examples=omarchy default editor | omarchy default editor code | omarchy default editor helix
 
-editor_file="$HOME/.local/state/omarchy/defaults/editor"
+editor_file="$HOME/.local/state/desktop/defaults/editor"
 
 if (($# == 0)); then
   if [[ -f $editor_file ]]; then

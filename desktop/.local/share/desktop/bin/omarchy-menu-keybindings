@@ -484,7 +484,7 @@ refresh_keybindings_cache() {
 output_binding_records() {
   local cache_dir cache_file cache_name
 
-  cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy"
+  cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/desktop"
   cache_name="keybindings-$(keybindings_cache_key).records"
   cache_file="$cache_dir/$cache_name"
 
