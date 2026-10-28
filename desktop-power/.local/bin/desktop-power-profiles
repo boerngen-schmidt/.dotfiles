@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# List and switch power profiles through TLP's tlp-pd, which replaces
+# power-profiles-daemon and ships tlpctl instead of powerprofilesctl. List
+# output matches Omarchy's omarchy-powerprofiles-list so the power panel and
+# the menu read it unchanged. TLP itself re-applies its configured profile when
+# the charger is connected or disconnected (TLP_AUTO_SWITCH), so unlike
+# omarchy-powerprofiles-set nothing is remembered per power source.
+#
+#   desktop-power-profiles list                 one profile per line
+#   desktop-power-profiles list --active-state  profile<TAB>1 for the active one, 0 otherwise
+#   desktop-power-profiles get                  the active profile
+#   desktop-power-profiles set PROFILE          switch to PROFILE
+
+set -euo pipefail
+
+usage() {
+  echo "Usage: desktop-power-profiles list [--active-state] | get | set PROFILE" >&2
+  exit 1
+}
+
+list() {
+  tlpctl list |
+    awk -v with_state="${1:+1}" '/^\s*[* ]\s*[a-zA-Z0-9-]+:$/ {
+      active = ($1 == "*") ? 1 : 0
+      gsub(/^[*[:space:]]+|:$/, "")
+      print $0 (with_state ? "\t" active : "")
+    }' |
+    tac
+}
+
+case "${1:-}" in
+  list)
+    [[ ${2:-} == "" || ${2:-} == "--active-state" ]] || usage
+    list "${2:-}"
+    ;;
+  get)
+    tlpctl get
+    ;;
+  set)
+    [[ -n ${2:-} ]] || usage
+    list | grep -qxF -- "$2" || {
+      echo "Power profile is not available: $2" >&2
+      exit 1
+    }
+    tlpctl set "$2"
+    ;;
+  *) usage ;;
+esac
