@@ -1,7 +1,5 @@
 -- Menus
 hl.bind("SUPER + SPACE", hl.dsp.exec_cmd("omarchy-launch-walker"), { description = "Launch apps" })
--- Trial of the shell's own app launcher next to walker
-hl.bind("SUPER + CTRL + ALT + SPACE", hl.dsp.exec_cmd("omarchy-menu toggle apps"), { description = "Launch apps (shell menu)" })
 hl.bind("SUPER + CTRL + E", hl.dsp.exec_cmd("omarchy-launch-walker -m symbols"), { description = "Emoji picker" })
 hl.bind("SUPER + ALT + SPACE", hl.dsp.exec_cmd("omarchy-menu toggle"), { description = "Omarchy menu" })
 hl.bind("SUPER + ESCAPE", hl.dsp.exec_cmd("omarchy-menu toggle system"), { description = "System menu" })

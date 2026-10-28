@@ -108,5 +108,5 @@ Apps are ranked by what was launched for a query (`history = true` in
 restart walker too (`omarchy-restart-walker`): it did not show the new ranking
 until then.
 
-`Super+Ctrl+Alt+Space` opens the shell's own app list (`omarchy-menu toggle
-apps`), on trial next to walker.
+The shell's own app list (`omarchy-menu toggle apps`) was tried next to walker
+in October 2026; walker stayed.
