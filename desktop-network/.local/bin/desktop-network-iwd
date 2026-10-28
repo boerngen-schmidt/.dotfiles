@@ -1,0 +1,366 @@
+#!/usr/bin/env python3
+"""Talk to iwd and systemd-networkd for the desktop.network shell plugin.
+
+Quickshell's Networking module only speaks NetworkManager, so the panel gets
+its state and actions from this script instead. Everything goes over the
+system bus as the calling user; iwd's D-Bus policy lets wheel members manage
+stations without root.
+
+  desktop-network-iwd snapshot                 JSON of Wi-Fi and wired devices
+  desktop-network-iwd current [IFACE]          JSON of the connected Wi-Fi network
+  desktop-network-iwd monitor                  one line per iwd/networkd change
+  desktop-network-iwd scan DEVICE
+  desktop-network-iwd connect NETWORK [--passphrase-stdin]
+  desktop-network-iwd disconnect DEVICE
+  desktop-network-iwd forget KNOWN_NETWORK
+  desktop-network-iwd power DEVICE on|off
+  desktop-network-iwd restart                  power-cycle every Wi-Fi device
+
+DEVICE, NETWORK and KNOWN_NETWORK are iwd object paths from `snapshot`.
+`connect` reads the passphrase from stdin so it never shows up in argv. A
+failed action prints the short iwd error name (Failed, Aborted, NotConfigured,
+...) on stdout and exits 1.
+"""
+
+import json
+import subprocess
+import sys
+
+import gi
+
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib  # noqa: E402
+
+IWD = "net.connman.iwd"
+NETWORKD = "org.freedesktop.network1"
+OBJECT_MANAGER = "org.freedesktop.DBus.ObjectManager"
+PROPERTIES = "org.freedesktop.DBus.Properties"
+AGENT_PATH = "/org/desktop/network/agent"
+CONNECT_TIMEOUT_MS = 60000
+
+AGENT_XML = """
+<node>
+  <interface name="net.connman.iwd.Agent">
+    <method name="Release"/>
+    <method name="RequestPassphrase">
+      <arg type="o" direction="in"/>
+      <arg type="s" direction="out"/>
+    </method>
+    <method name="RequestPrivateKeyPassphrase">
+      <arg type="o" direction="in"/>
+      <arg type="s" direction="out"/>
+    </method>
+    <method name="RequestUserNameAndPassword">
+      <arg type="o" direction="in"/>
+      <arg type="s" direction="out"/>
+      <arg type="s" direction="out"/>
+    </method>
+    <method name="RequestUserPassword">
+      <arg type="o" direction="in"/>
+      <arg type="s" direction="in"/>
+      <arg type="s" direction="out"/>
+    </method>
+    <method name="Cancel">
+      <arg type="s" direction="in"/>
+    </method>
+  </interface>
+</node>
+"""
+
+
+def system_bus():
+    return Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+
+
+def call(bus, path, interface, method, params=None, reply=None, timeout=-1):
+    result = bus.call_sync(
+        IWD, path, interface, method, params,
+        GLib.VariantType(reply) if reply else None,
+        Gio.DBusCallFlags.NONE, timeout, None)
+    return result.unpack() if result is not None else None
+
+
+def error_name(error):
+    remote = Gio.DBusError.get_remote_error(error) or ""
+    return remote.rsplit(".", 1)[-1] or "Failed"
+
+
+def fail(error):
+    print(error_name(error))
+    print(error.message, file=sys.stderr)
+    sys.exit(1)
+
+
+def signal_quality(strength):
+    # iwd reports 100 * dBm. Map -100..-50 dBm onto 0..1 the way
+    # NetworkManager's percentage does, so the panel's bar icons line up.
+    dbm = strength / 100.0
+    return max(0.0, min(1.0, 2.0 * (dbm + 100.0) / 100.0))
+
+
+def managed_objects(bus):
+    return call(bus, "/", OBJECT_MANAGER, "GetManagedObjects", reply="(a{oa{sa{sv}}})")[0]
+
+
+def ordered_networks(bus, device_path):
+    try:
+        rows = call(bus, device_path, IWD + ".Station", "GetOrderedNetworks", reply="(a(on))")[0]
+    except GLib.Error:
+        return {}
+    return {path: signal_quality(strength) for path, strength in rows}
+
+
+def wifi_devices(bus, objects):
+    devices = []
+    for path, ifaces in sorted(objects.items()):
+        device = ifaces.get(IWD + ".Device")
+        if device is None:
+            continue
+        station = ifaces.get(IWD + ".Station")
+        signals = ordered_networks(bus, path) if station is not None else {}
+        networks = []
+        for net_path, net_ifaces in objects.items():
+            network = net_ifaces.get(IWD + ".Network")
+            if network is None or network.get("Device") != path:
+                continue
+            known_path = network.get("KnownNetwork", "")
+            networks.append({
+                "path": net_path,
+                "name": network.get("Name", ""),
+                "security": network.get("Type", ""),
+                "connected": bool(network.get("Connected", False)),
+                "known": bool(known_path),
+                "knownPath": known_path,
+                "signal": signals.get(net_path, 0.0),
+            })
+        state = station.get("State", "") if station is not None else ""
+        devices.append({
+            "path": path,
+            "type": "wifi",
+            "name": device.get("Name", ""),
+            "powered": bool(device.get("Powered", False)),
+            "mode": device.get("Mode", ""),
+            "station": station is not None,
+            "state": state,
+            "scanning": bool(station.get("Scanning", False)) if station is not None else False,
+            "connected": state == "connected",
+            "connectedNetwork": station.get("ConnectedNetwork", "") if station is not None else "",
+            "networks": networks,
+        })
+    return devices
+
+
+def wired_devices():
+    try:
+        raw = subprocess.run(["networkctl", "--json=short", "list"], capture_output=True,
+                             text=True, check=True).stdout
+        interfaces = json.loads(raw).get("Interfaces", [])
+    except (OSError, subprocess.CalledProcessError, ValueError):
+        return []
+    devices = []
+    for link in interfaces:
+        if link.get("Type") != "ether":
+            continue
+        operational = link.get("OperationalState", "")
+        devices.append({
+            "path": "",
+            "type": "ethernet",
+            "name": link.get("Name", ""),
+            "state": operational,
+            "connected": operational in ("routable", "degraded"),
+            "networks": [],
+        })
+    return devices
+
+
+def snapshot():
+    bus = system_bus()
+    try:
+        objects = managed_objects(bus)
+        available = True
+    except GLib.Error:
+        objects = {}
+        available = False
+    wifi = wifi_devices(bus, objects)
+    print(json.dumps({
+        "available": available,
+        "wifiEnabled": any(device["powered"] for device in wifi),
+        "devices": wifi + wired_devices(),
+    }))
+
+
+def current(iface):
+    bus = system_bus()
+    try:
+        objects = managed_objects(bus)
+    except GLib.Error as error:
+        fail(error)
+    for device in wifi_devices(bus, objects):
+        if iface and device["name"] != iface:
+            continue
+        for network in device["networks"]:
+            if not network["connected"]:
+                continue
+            known = objects.get(network["knownPath"], {}).get(IWD + ".KnownNetwork", {})
+            print(json.dumps({
+                "iface": device["name"],
+                "ssid": network["name"],
+                "security": network["security"],
+                "hidden": bool(known.get("Hidden", False)),
+            }))
+            return
+    print("No active Wi-Fi connection", file=sys.stderr)
+    sys.exit(1)
+
+
+def monitor():
+    bus = system_bus()
+    loop = GLib.MainLoop()
+    pending = []
+
+    # A scan fires dozens of property changes; report them as one line.
+    def flush():
+        pending.clear()
+        try:
+            print("changed", flush=True)
+        except BrokenPipeError:
+            loop.quit()
+        return False
+
+    def changed(*_args):
+        if not pending:
+            pending.append(GLib.timeout_add(150, flush))
+
+    for sender in (IWD, NETWORKD):
+        bus.signal_subscribe(sender, None, None, None, None,
+                             Gio.DBusSignalFlags.NONE, changed)
+    # iwd restarting or going away is a change too.
+    bus.signal_subscribe("org.freedesktop.DBus", "org.freedesktop.DBus", "NameOwnerChanged",
+                         "/org/freedesktop/DBus", IWD, Gio.DBusSignalFlags.NONE, changed)
+    try:
+        loop.run()
+    except KeyboardInterrupt:
+        pass
+    # The reader is gone; don't let interpreter shutdown complain about stdout.
+    sys.stdout = None
+
+
+def connect(network_path, passphrase):
+    bus = system_bus()
+    loop = GLib.MainLoop()
+    outcome = {}
+
+    def on_method_call(_conn, _sender, _path, _iface, method, _params, invocation):
+        if method == "RequestPassphrase" and passphrase:
+            invocation.return_value(GLib.Variant("(s)", (passphrase,)))
+        elif method in ("Release", "Cancel"):
+            invocation.return_value(None)
+        else:
+            # Enterprise and missing passphrases are not answered here; iwd
+            # turns the cancel into an Aborted error the panel reports.
+            invocation.return_dbus_error("net.connman.iwd.Agent.Error.Canceled", "No credentials")
+
+    node = Gio.DBusNodeInfo.new_for_xml(AGENT_XML)
+    registration = bus.register_object(AGENT_PATH, node.interfaces[0], on_method_call, None, None)
+    agent_registered = False
+    try:
+        call(bus, "/net/connman/iwd", IWD + ".AgentManager", "RegisterAgent",
+             GLib.Variant("(o)", (AGENT_PATH,)))
+        agent_registered = True
+    except GLib.Error:
+        # Another agent (iwctl, another panel action) owns the prompt; known
+        # and open networks still connect without one.
+        pass
+
+    def on_done(conn, result):
+        try:
+            conn.call_finish(result)
+        except GLib.Error as error:
+            outcome["error"] = error
+        loop.quit()
+
+    bus.call(IWD, network_path, IWD + ".Network", "Connect", None, None,
+             Gio.DBusCallFlags.NONE, CONNECT_TIMEOUT_MS, None, on_done)
+    loop.run()
+
+    if agent_registered:
+        try:
+            call(bus, "/net/connman/iwd", IWD + ".AgentManager", "UnregisterAgent",
+                 GLib.Variant("(o)", (AGENT_PATH,)))
+        except GLib.Error:
+            pass
+    bus.unregister_object(registration)
+
+    if "error" in outcome:
+        fail(outcome["error"])
+    print("ok")
+
+
+def set_powered(bus, device_path, powered):
+    call(bus, device_path, PROPERTIES, "Set",
+         GLib.Variant("(ssv)", (IWD + ".Device", "Powered", GLib.Variant("b", powered))))
+
+
+def restart():
+    bus = system_bus()
+    try:
+        objects = managed_objects(bus)
+        paths = [path for path, ifaces in objects.items() if IWD + ".Device" in ifaces]
+        if not paths:
+            print("No Wi-Fi device found", file=sys.stderr)
+            sys.exit(1)
+        for path in paths:
+            set_powered(bus, path, False)
+        for path in paths:
+            set_powered(bus, path, True)
+    except GLib.Error as error:
+        fail(error)
+    print("Wi-Fi restarted")
+
+
+def main(argv):
+    if len(argv) < 2 or argv[1] in ("-h", "--help"):
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    command, args = argv[1], argv[2:]
+
+    if command == "snapshot":
+        snapshot()
+    elif command == "current":
+        current(args[0] if args else "")
+    elif command == "monitor":
+        monitor()
+    elif command == "restart":
+        restart()
+    elif command == "connect" and args:
+        passphrase = ""
+        if "--passphrase-stdin" in args[1:]:
+            passphrase = sys.stdin.readline().rstrip("\n")
+        connect(args[0], passphrase)
+    elif command in ("scan", "disconnect", "forget", "power") and args:
+        bus = system_bus()
+        try:
+            if command == "scan":
+                call(bus, args[0], IWD + ".Station", "Scan")
+            elif command == "disconnect":
+                call(bus, args[0], IWD + ".Station", "Disconnect")
+            elif command == "forget":
+                call(bus, args[0], IWD + ".KnownNetwork", "Forget")
+            elif len(args) == 2 and args[1] in ("on", "off"):
+                set_powered(bus, args[0], args[1] == "on")
+            else:
+                print("Usage: desktop-network-iwd power DEVICE on|off", file=sys.stderr)
+                return 2
+        except GLib.Error as error:
+            # A scan already running is the outcome the caller wanted.
+            if command == "scan" and error_name(error) in ("Busy", "InProgress"):
+                return 0
+            fail(error)
+    else:
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

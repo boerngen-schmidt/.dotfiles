@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# Generate a Wi-Fi QR matrix for the shell's share card, from iwd. Output
+# matches Omarchy's omarchy-network-qr: an optional meta line, then one row of
+# 0/1 modules per line. The passphrase comes from iwd's saved network file
+# through the root helper desktop-network-psk.
+#
+#   desktop-network-qr [--meta] [interface]
+
+set -euo pipefail
+
+psk_helper=/usr/local/bin/desktop-network-psk
+
+interface=""
+emit_meta=false
+for arg in "$@"; do
+  case "$arg" in
+    --meta) emit_meta=true ;;
+    *) interface=$arg ;;
+  esac
+done
+
+if ! current=$(desktop-network-iwd current "$interface" 2>/dev/null); then
+  echo "No active Wi-Fi connection" >&2
+  exit 1
+fi
+
+interface=$(jq -r '.iface' <<<"$current")
+ssid=$(jq -r '.ssid' <<<"$current")
+key_management=$(jq -r '.security' <<<"$current")
+hidden=$(jq -r '.hidden' <<<"$current")
+
+[[ -n $ssid ]] || { echo "Could not read the Wi-Fi name" >&2; exit 1; }
+
+case "$key_management" in
+  8021x)
+    echo "Enterprise Wi-Fi cannot be shared with a password QR code" >&2
+    exit 1
+    ;;
+  psk)
+    status=0
+    password=$(sudo -n "$psk_helper" "$ssid" 2>/dev/null) || status=$?
+    if ((status == 2)); then
+      echo "This network has no saved passphrase" >&2
+      exit 1
+    elif ((status != 0)) || [[ -z $password ]]; then
+      echo "Could not read the Wi-Fi password" >&2
+      exit 1
+    fi
+    security=WPA
+    ;;
+  *)
+    password=""
+    security=nopass
+    ;;
+esac
+
+escape_wifi_qr() {
+  local value=$1
+  value=${value//\\/\\\\}
+  value=${value//;/\\;}
+  value=${value//,/\\,}
+  value=${value//:/\\:}
+  printf '%s' "$value"
+}
+
+payload="WIFI:T:$security;S:$(escape_wifi_qr "$ssid");P:$(escape_wifi_qr "$password");"
+[[ $hidden == "true" ]] && payload+="H:true;"
+payload+=";"
+
+# Interface, security type, then the SSID last so it may contain tabs.
+[[ $emit_meta == "true" ]] && printf 'meta\t%s\t%s\t%s\n' "$interface" "$security" "$ssid"
+
+# ASCII uses two characters per module; collapse each pair to one 0/1 value
+# so the shell can draw the matrix with plain rectangles. Margin 4 is the
+# spec quiet zone.
+ascii=$(printf '%s' "$payload" | qrencode --type ASCII --margin 4 --output -)
+while IFS= read -r line; do
+  row=
+  for ((column = 0; column < ${#line}; column += 2)); do
+    [[ ${line:column:2} == *#* ]] && row+=1 || row+=0
+  done
+  printf '%s\n' "$row"
+done <<<"$ascii"

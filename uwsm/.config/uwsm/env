@@ -4,6 +4,9 @@
 export HELPERS_PATH=$HOME/.local/share/desktop
 export PATH=$HELPERS_PATH/bin:$PATH
 
+# Personal scripts, e.g. the desktop-network package's helpers
+export PATH=$HOME/.local/bin:$PATH
+
 # Where the shell, themes and their scripts live (Omarchy's OMARCHY_PATH)
 export DESKTOP_SHELL_PATH=$HELPERS_PATH
 

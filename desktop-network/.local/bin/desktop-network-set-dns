@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Switch the system DNS provider through the root helper desktop-network-dns,
+# which writes the resolved and networkd drop-ins. Custom asks for the servers
+# on the terminal, so the shell runs it in a floating terminal.
+#
+#   desktop-network-set-dns DHCP|Cloudflare|Google|Custom
+
+set -euo pipefail
+
+dns_helper=/usr/local/bin/desktop-network-dns
+
+provider=${1:-}
+case "$provider" in
+  DHCP | Cloudflare | Google | Custom) ;;
+  *)
+    echo "Usage: desktop-network-set-dns DHCP|Cloudflare|Google|Custom" >&2
+    exit 2
+    ;;
+esac
+
+if [[ ! -x $dns_helper ]]; then
+  echo "desktop-network-dns is not installed (run the benstop playbook)" >&2
+  exit 1
+fi
+
+servers=()
+if [[ $provider == "Custom" ]]; then
+  echo "Enter your DNS servers (space-separated, e.g. '192.168.1.1 1.1.1.1'):"
+  read -r -a servers || true
+  if ((${#servers[@]} == 0)); then
+    echo "Error: No DNS servers provided." >&2
+    exit 1
+  fi
+fi
+
+exec sudo -n "$dns_helper" set "$provider" "${servers[@]}"
