@@ -3,16 +3,19 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
-import Quickshell.Networking
 import qs.Ui
 import qs.Commons
 import qs.Commons as Commons
 import "Model.js" as Model
 
+// Omarchy's network panel ported from NetworkManager to iwd and
+// systemd-networkd: Wi-Fi state and actions go through NetworkBackend
+// (desktop-network-iwd), details through desktop-network-status, DNS and the
+// Wi-Fi band through root helpers installed by benstop.
 Panel {
   id: root
-  moduleName: "omarchy.network"
-  ipcTarget: "omarchy.network"
+  moduleName: "desktop.network"
+  ipcTarget: "desktop.network"
   // manageIpc: false so this panel can own the single IpcHandler the target
   // permits — needed for the toggleNetwork method below.
   manageIpc: false
@@ -26,14 +29,13 @@ Panel {
   function cancelPasswordPrompt() {
     passwordSsid = ""
     passwordText = ""
-    identityText = ""
   }
 
   // Live connection details from `ip` / /sys / iw.
   property var info: ({})  // { iface, type, ip, prefix, gateway, speed, duplex, ssid, signal, freq, bitrate, rx_bytes, tx_bytes, router_ping_ms, internet_ping_ms }
 
   // Throughput tracking. Rates are computed as deltas between successive
-  // `omarchy-network-status --verbose` samples (~1.5s apart via detailsPoll).
+  // `desktop-network-status --verbose` samples (~1.5s apart via detailsPoll).
   // We hold "prev" alongside a timestamp so the first sample after open or
   // after an interface switch doesn't manufacture a spike.
   property real prevRxBytes: 0
@@ -66,23 +68,34 @@ Panel {
     "Bending light",
   ]
   readonly property string connectionPhrase: connectionPhrases[connectionPhraseIndex % connectionPhrases.length]
-  readonly property bool networkManagerAvailable: Networking.backend === NetworkBackendType.NetworkManager
-  readonly property var networkDevices: Networking.devices ? Networking.devices.values : []
-  readonly property var wifiDevice: findDevice(DeviceType.Wifi)
-  readonly property var wifiNetworkObjects: wifiDevice && wifiDevice.networks ? wifiDevice.networks.values : []
+
+  NetworkBackend {
+    id: backend
+    active: root.opened
+  }
+
+  readonly property bool backendAvailable: backend.available
+  readonly property var networkDevices: backend.devices
+  readonly property var wifiDevice: findDevice("wifi")
+  readonly property var wifiNetworkObjects: wifiDevice && wifiDevice.networks ? wifiDevice.networks : []
   readonly property var connectedWifiNetwork: findConnectedWifiNetwork()
   property var wifiNetworks: []
   property bool scanning: false
   property bool wifiStationAvailable: false
   property string dnsProvider: ""
   property string pendingDnsProvider: ""
-  // Wi-Fi band state from `omarchy-network-band`. `bandCurrent` is the band
-  // the radio is actually on; `bandSelected` is the pinned choice ("auto" when
-  // nothing is pinned), and the two differ whenever Auto is in effect.
+  // False when `desktop-network-status --dns` has nothing to say, i.e. the
+  // root helper from benstop is not installed.
+  property bool dnsAvailable: false
+  // Wi-Fi band state from `desktop-network-status --band`. `bandCurrent` is
+  // the band the radio is actually on; `bandSelected` is iwd's preferred band
+  // ("auto" when none is preferred), and the two differ whenever Auto is in
+  // effect. The preference is iwd-wide, so it covers every network.
   property string bandCurrent: ""
   property string bandSelected: "auto"
   property var bandAvailable: []
   property string pendingBand: ""
+  property string bandFailure: ""
 
   // Per-row in-flight state. `actionSsid` flips on for the row whose action
   // is currently running so it can render "Connecting…" / "Disconnecting…" /
@@ -97,17 +110,11 @@ Panel {
   property string failureReason: ""
   property string passwordSsid: ""
   property string passwordText: ""
-  property string identityText: ""
 
-  // ConnectionFailReason values as a plain object, so Model.js helpers stay
-  // pure JS and Node-testable.
-  readonly property var connectionFailReasons: ({
-    NoSecrets: ConnectionFailReason.NoSecrets,
-    WifiAuthTimeout: ConnectionFailReason.WifiAuthTimeout,
-    WifiNetworkLost: ConnectionFailReason.WifiNetworkLost,
-    WifiClientDisconnected: ConnectionFailReason.WifiClientDisconnected,
-    WifiClientFailed: ConnectionFailReason.WifiClientFailed
-  })
+  // Failure reasons as a plain object, so Model.js helpers stay pure JS and
+  // Node-testable. NetworkBackend maps iwd's errors onto these.
+  readonly property var connectionFailReasons: backend.reasons
+  readonly property string enterpriseHint: "Set up with iwctl or a provisioning file"
 
   // True while any wifi action is mid-flight. Rows
   // disable themselves on this so clicks on the other rows don't silently
@@ -130,7 +137,7 @@ Panel {
   // The hero switch is the Wi-Fi radio, so it only exists when there is a
   // radio to switch. On a wired box it would otherwise sit there reading
   // "off" beside a perfectly live Ethernet connection.
-  readonly property bool canToggleWifi: networkManagerAvailable && wifiStationAvailable
+  readonly property bool canToggleWifi: backendAvailable && wifiStationAvailable
   readonly property int qrHeaderIndex: canShareWifi ? 0 : -1
   readonly property int speedHeaderIndex: canRunSpeedTest ? (canShareWifi ? 1 : 0) : -1
   readonly property int toggleHeaderIndex: canToggleWifi ? (canShareWifi ? 1 : 0) + (canRunSpeedTest ? 1 : 0) : -1
@@ -138,7 +145,7 @@ Panel {
   readonly property bool qrHeaderHasCursor: cursorActive && focusSection === "header" && headerIndex === qrHeaderIndex
   readonly property bool speedHeaderHasCursor: cursorActive && focusSection === "header" && headerIndex === speedHeaderIndex
   readonly property bool toggleHeaderHasCursor: cursorActive && focusSection === "header" && headerIndex === toggleHeaderIndex
-  readonly property string toggleHint: Networking.wifiEnabled ? "Turn Wi-Fi off" : "Turn Wi-Fi on"
+  readonly property string toggleHint: backend.wifiEnabled ? "Turn Wi-Fi off" : "Turn Wi-Fi on"
   readonly property var dnsProviders: ["DHCP", "Cloudflare", "Google", "Custom"]
   property int dnsIndex: 0
   // ["2.4", "5", ...], or empty when there is nothing to choose between.
@@ -160,7 +167,9 @@ Panel {
   // Under Automatic there is nothing to pick, so the pills collapse away and
   // the header states the live band instead.
   readonly property bool bandPillsVisible: canSelectBand && bandPinned
-  readonly property string bandSectionTitle: Model.bandSectionTitle(bandEffective, bandCurrent)
+  readonly property string bandSectionTitle: bandFailure !== ""
+    ? bandFailure.toUpperCase()
+    : Model.bandSectionTitle(bandEffective, bandCurrent)
   readonly property bool bandBusy: pendingBand !== ""
   // The speed test needs an interface to test, so its hero action only
   // appears once there is one.
@@ -203,13 +212,12 @@ Panel {
   }
 
   function toggleNetwork() {
-    if (!networkManagerAvailable) return
-    Networking.wifiEnabled = !Networking.wifiEnabled
-    Qt.callLater(function() { root.refresh(true) })
+    if (!backendAvailable) return
+    backend.setWifiEnabled(!backend.wifiEnabled)
   }
 
   IpcHandler {
-    target: "omarchy.network"
+    target: "desktop.network"
 
     function open() { root.open() }
     function close() { root.close() }
@@ -293,29 +301,6 @@ Panel {
   readonly property color hoverFill: bar ? Style.hoverFillFor(bar.foreground, Commons.Color.accent) : "transparent"
   readonly property color selectedFill: bar ? Style.selectedFillFor(bar.foreground, Commons.Color.accent) : "transparent"
 
-  // scannerEnabled lives on the shared WifiDevice, which has no reference
-  // counting, and a bar widget is instantiated once per monitor. Tracking the
-  // device this instance turned scanning on for keeps the release correct when
-  // the panel closes, the device is replaced, or the widget is destroyed —
-  // without a closed instance ever claiming the scanner.
-  property var scannerDevice: null
-
-  function setScannerEnabled(enabled) {
-    var nextDevice = opened ? wifiDevice : null
-
-    if (scannerDevice && scannerDevice !== nextDevice)
-      scannerDevice.scannerEnabled = false
-
-    scannerDevice = nextDevice
-
-    if (scannerDevice)
-      scannerDevice.scannerEnabled = enabled
-  }
-
-  Component.onDestruction: {
-    if (scannerDevice) scannerDevice.scannerEnabled = false
-  }
-
   // KeyboardPanel primes layer-shell focus whenever the panel opens. That's
   // what makes the SUPER+CTRL+W keybind land here with navigation ready.
   onOpenedChanged: {
@@ -329,10 +314,6 @@ Panel {
       syncBandIndex()
       cursorActive = false
     } else {
-      // Drop a restart armed by this open: without it a close/reopen inside
-      // the 100ms window reuses the running timer and re-enables the scanner
-      // almost immediately, undoing the deferral #6605 restored.
-      scanRestart.stop()
       // Reset throughput tracking so the next open doesn't compute a fake
       // rate from a sample taken minutes ago.
       prevSampleTime = 0
@@ -344,7 +325,6 @@ Panel {
       routerPingLatency = -1
       internetPingLatency = -1
       internetPingPacketLoss = 0
-      setScannerEnabled(false)
     }
   }
 
@@ -384,10 +364,7 @@ Panel {
     }
   }
 
-  onWifiDeviceChanged: {
-    setScannerEnabled(true)
-    syncWifiNetworks()
-  }
+  onWifiDeviceChanged: syncWifiNetworks()
 
   onWifiNetworkObjectsChanged: syncWifiNetworks()
 
@@ -404,7 +381,21 @@ Panel {
 
   function canShareNetwork(net) {
     if (!net || !net.connected) return false
-    return net.security !== WifiSecurityType.Wpa2Eap && net.security !== WifiSecurityType.WpaEap
+    return !isEnterpriseSecurity(net.security)
+  }
+
+  // iwd names 802.1X networks "8021x".
+  function isEnterpriseSecurity(security) {
+    return security === "8021x"
+  }
+
+  // iwd can't take an enterprise login from the panel: it needs a
+  // provisioning file in /var/lib/iwd. A provisioned (known) network
+  // connects like any other.
+  function showEnterpriseHint(ssid) {
+    actionTimeout.stop()
+    failureSsid = ssid
+    failureReason = enterpriseHint
   }
 
   function selectWifiActionByDelta(delta) {
@@ -429,14 +420,15 @@ Panel {
     // connectedWifiNetwork when handed null, so a row left stale by scan churn
     // would otherwise tear down whatever is connected now instead.
     if (net.connected) { disconnectRow(net.ssid); return }
+    if (isEnterpriseSecurity(net.security) && !net.known) { showEnterpriseHint(net.ssid); return }
     if (requiresCredentials(net.security) && !net.known) { openPasswordPrompt(net.ssid); return }
     connectDirectly(net.ssid)
   }
 
-  // Bar pill state, derived from the native NetworkManager service so the
-  // icon reflects connection changes without polling. Wired is preferred
-  // when both are up, matching the default-route device.
-  readonly property var wiredDevice: findDevice(DeviceType.Wired)
+  // Bar pill state, derived from the iwd/networkd snapshot, which the
+  // backend refreshes on every D-Bus change. Wired is preferred when both are
+  // up, matching the default-route device.
+  readonly property var wiredDevice: findDevice("ethernet")
   readonly property string kind: {
     if (wiredDevice && wiredDevice.connected) return "ethernet"
     if (connectedWifiNetwork) return "wifi"
@@ -472,25 +464,16 @@ Panel {
   function refresh(scanWifi) {
     if (scanWifi === undefined) scanWifi = false
     if (!detailsProc.running) detailsProc.running = true
-    if (!dnsProc.running) {
-      dnsProc.command = ["bash", "-c", root.dnsCommand("")]
-      dnsProc.running = true
-    }
-    if (!bandProc.running) {
-      bandProc.command = ["omarchy-network-band"]
-      bandProc.running = true
-    }
+    if (!dnsProc.running) dnsProc.running = true
+    if (!bandProc.running) bandProc.running = true
     // A closed panel has no nearby-network list to fill, and bare refresh()
-    // reaches here from action completion, timeouts and construction.
-    if (opened && wifiDevice) {
-      if (scanWifi) {
-        scanning = true
-        setScannerEnabled(false)
-        scanRestart.start()
-      } else {
-        setScannerEnabled(true)
-      }
+    // reaches here from action completion, timeouts and construction. iwd
+    // scans periodically by itself; opening the panel asks for a fresh one.
+    if (opened && wifiDevice && scanWifi) {
+      scanning = true
+      backend.scan(wifiDevice)
     }
+    backend.refresh()
     syncWifiNetworks()
   }
 
@@ -605,8 +588,8 @@ Panel {
       if (row) nets.push(row)
     }
     wifiNetworks = Model.sortWifiRows(nets)
-    wifiStationAvailable = !!wifiDevice
-    scanning = false
+    wifiStationAvailable = !!(wifiDevice && wifiDevice.station)
+    scanning = !!(wifiDevice && wifiDevice.scanning)
   }
 
   function wifiSectionTitle(index) {
@@ -619,7 +602,8 @@ Panel {
 
   function updateDns(raw) {
     var value = String(raw || "").trim()
-    dnsProvider = value || "DHCP"
+    dnsAvailable = value !== ""
+    dnsProvider = value
   }
 
   function updateBand(raw) {
@@ -635,15 +619,30 @@ Panel {
     bandAvailable = status.available
   }
 
-  // Pinning a band reassociates, but the panel deliberately stays open: the
-  // reconnect is the thing you want to watch, and the details rows above
-  // report it as it happens.
+  // The preference is iwd-wide and setting it restarts iwd, so Wi-Fi drops
+  // and reconnects. pkexec asks through the shell's polkit agent. The panel
+  // deliberately stays open: the reconnect is the thing you want to watch,
+  // and the details rows above report it as it happens.
   function setBand(band) {
     if (!band || actionProc.running) return
 
+    bandFailureTimer.stop()
+    root.bandFailure = ""
     root.pendingBand = band
-    actionProc.command = ["omarchy-network-band", band]
+    actionProc.command = ["pkexec", "/usr/local/bin/desktop-network-band", "set", band]
     actionProc.running = true
+  }
+
+  // pkexec exits 126 when the password prompt is dismissed and 127 when it
+  // is refused or the helper is missing.
+  function bandFailureText(exitCode) {
+    if (exitCode === 126) return "Band change cancelled"
+    if (exitCode === 127) return "Band change not allowed"
+    return "Band change failed"
+  }
+
+  function notify(summary, body) {
+    Quickshell.execDetached(["notify-send", "-a", "Network", summary, body])
   }
 
   // The speed test is its own panel plugin (omarchy.speedtest) so a
@@ -659,37 +658,34 @@ Panel {
     bar.shell.summon("omarchy.speedtest", connection ? JSON.stringify({ connection: connection }) : "{}")
   }
 
-  function dnsCommand(provider) {
-    var command = "omarchy-dns"
-    if (provider) command += " " + Util.shellQuote(provider)
-    return command
-  }
-
   function setDns(provider) {
     if (!root.bar || !provider || actionProc.running) return
 
+    if (!root.dnsAvailable) {
+      root.notify("DNS unavailable", "desktop-network-dns is not installed; run the benstop playbook.")
+      return
+    }
+
     if (provider === "Custom") {
       var launcher = "omarchy-launch-floating-terminal-with-presentation"
-      root.bar.run(launcher + " " + Util.shellQuote(root.dnsCommand(provider)))
+      root.bar.run(launcher + " " + Util.shellQuote("desktop-network-set-dns Custom"))
       root.close()
       return
     }
 
     root.pendingDnsProvider = provider
-    actionProc.command = ["bash", "-c", root.dnsCommand(provider)]
+    actionProc.command = ["desktop-network-set-dns", provider]
     actionProc.running = true
     root.close()
   }
 
+  // iwd reports OWE (Enhanced Open) networks as "open" too.
   function requiresCredentials(security) {
-    return Model.requiresCredentials(security, WifiSecurityType.Open, WifiSecurityType.Owe)
+    return Model.requiresCredentials(security, "open", "owe")
   }
 
   function openPasswordPrompt(ssid) {
-    if (passwordSsid !== ssid) {
-      passwordText = ""
-      identityText = ""
-    }
+    if (passwordSsid !== ssid) passwordText = ""
     passwordSsid = ssid
   }
 
@@ -757,36 +753,39 @@ Panel {
     else if (actionKind === "forget" && !network.known && !network.stateChanging) clearNetworkAction()
   }
 
-  function connectDirectly(ssid) {
-    runNetworkAction("connect", networkForSsid(ssid), function(network) { network.connect() })
-  }
-
-  function connectWithPassphrase(ssid, passphrase) {
-    runNetworkAction("connect", networkForSsid(ssid), function(network) { network.connectWithPsk(passphrase) })
-  }
-
-  function connectEnterprise(ssid, identity, passphrase) {
-    runNetworkAction("connect", networkForSsid(ssid), function(network) {
-      enterpriseConnect.secret = passphrase
-      enterpriseConnect.command = ["bash", "-c", Model.enterpriseConnectScript, "nmcli-eap", ssid, identity]
-      enterpriseConnect.running = true
-    })
-  }
-
-  // Creates and activates the 802.1X profile (see Model.enterpriseConnectScript).
-  // The password goes over stdin, never argv.
-  Process {
-    id: enterpriseConnect
-    property string secret: ""
-    stdinEnabled: true
-    onStarted: {
-      write(secret + "\n")
-      secret = ""
+  // The backend reports each action's outcome: "" settles it, a reason fails
+  // it. A failed connect from this panel on a credentialed network reopens
+  // the passphrase prompt, as the NetworkManager version did.
+  function actionDone(network) {
+    return function(reason) {
+      if (actionKind === "" || actionSsid !== (network.name || "")) return
+      if (reason === "") {
+        clearNetworkAction()
+        return
+      }
+      var wasConnect = actionKind === "connect"
+      failNetworkAction(network, reason)
+      if (wasConnect && shouldRepromptPassphrase(reason, requiresCredentials(network.security)))
+        openPasswordPrompt(network.name)
     }
   }
 
+  function connectDirectly(ssid) {
+    runNetworkAction("connect", networkForSsid(ssid), function(network) {
+      backend.connect(network, "", actionDone(network))
+    })
+  }
+
+  function connectWithPassphrase(ssid, passphrase) {
+    runNetworkAction("connect", networkForSsid(ssid), function(network) {
+      backend.connect(network, passphrase, actionDone(network))
+    })
+  }
+
   function disconnect(network) {
-    runNetworkAction("disconnect", network || connectedWifiNetwork, function(net) { net.disconnect() })
+    runNetworkAction("disconnect", network || connectedWifiNetwork, function(net) {
+      backend.disconnect(net, actionDone(net))
+    })
   }
 
   // Disconnect from a row's SSID. Rows are primitive snapshots that can outlive
@@ -799,7 +798,9 @@ Panel {
   }
 
   function forget(net) {
-    runNetworkAction("forget", net ? networkForSsid(net.ssid) : null, function(network) { network.forget() })
+    runNetworkAction("forget", net ? networkForSsid(net.ssid) : null, function(network) {
+      backend.forget(network, actionDone(network))
+    })
   }
 
   implicitWidth: button.implicitWidth
@@ -810,34 +811,23 @@ Panel {
   // Pulls everything we want about the active route's interface in one shot.
   Process {
     id: detailsProc
-    command: ["omarchy-network-status", "--verbose"]
+    command: ["desktop-network-status", "--verbose"]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.updateDetails(text)
     }
   }
 
-  Timer {
-    id: scanRestart
-    interval: 100
-    repeat: false
-    onTriggered: {
-      if (root.opened && root.wifiDevice) {
-        root.setScannerEnabled(true)
-        scanDone.start()
-      }
-    }
-  }
-
-  Timer {
-    id: scanDone
-    interval: 1500
-    repeat: false
-    onTriggered: root.syncWifiNetworks()
+  // Each snapshot carries iwd's own Scanning flag. Deferred so the bindings
+  // derived from the snapshot (wifiDevice, wifiNetworkObjects) settle first.
+  Connections {
+    target: backend
+    function onSnapshotChanged() { Qt.callLater(root.syncWifiNetworks) }
   }
 
   Process {
     id: dnsProc
+    command: ["desktop-network-status", "--dns"]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.updateDns(text)
@@ -846,28 +836,31 @@ Panel {
 
   Process {
     id: bandProc
+    command: ["desktop-network-status", "--band"]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.updateBand(text)
     }
   }
 
-  // Slower than detailsPoll on purpose: this shells out to nmcli several times,
-  // and band availability only moves when a scan turns up a new BSSID.
+  // Slower than detailsPoll: the preference only moves when someone sets it,
+  // and the live band only when Wi-Fi roams.
   Timer {
     id: bandPoll
     interval: 4000
     repeat: true
     running: root.opened
-    onTriggered: {
-      if (bandProc.running) return
-      bandProc.command = ["omarchy-network-band"]
-      bandProc.running = true
-    }
+    onTriggered: if (!bandProc.running) bandProc.running = true
   }
 
-  // Action runner for DNS provider changes. Wi-Fi actions use the
-  // Quickshell.Networking NetworkManager backend directly.
+  Timer {
+    id: bandFailureTimer
+    interval: 4000
+    onTriggered: root.bandFailure = ""
+  }
+
+  // Action runner for DNS provider and band changes. Wi-Fi actions go
+  // through NetworkBackend.
   Process {
     id: actionProc
     stdout: StdioCollector { id: actionStdout; waitForEnd: true }
@@ -875,12 +868,18 @@ Panel {
     onExited: function(exitCode) {
       if (root.pendingDnsProvider !== "") {
         if (exitCode === 0) root.dnsProvider = root.pendingDnsProvider
+        else root.notify("Could not switch DNS", actionStderr.text.trim() || "desktop-network-dns failed")
         root.pendingDnsProvider = ""
       }
       if (root.pendingBand !== "") {
-        // A refused or reverted pin leaves bandSelected alone, so the pills
+        // A refused or failed change leaves bandSelected alone, so the pills
         // keep showing what is actually in force rather than what was asked.
-        if (exitCode === 0) root.bandSelected = root.pendingBand
+        if (exitCode === 0) {
+          root.bandSelected = root.pendingBand
+        } else {
+          root.bandFailure = root.bandFailureText(exitCode)
+          bandFailureTimer.restart()
+        }
         root.pendingBand = ""
         // The panel stayed open through the reconnect, so pull fresh state now
         // instead of leaving stale readings until the next poll tick.
@@ -890,7 +889,7 @@ Panel {
   }
 
   // Poll details while the panel is open so the IP/route header catches up
-  // as soon as NetworkManager finishes activating a connection.
+  // as soon as iwd and networkd finish bringing a connection up.
   Timer {
     id: detailsPoll
     interval: 1500
@@ -934,11 +933,10 @@ Panel {
 
   Timer {
     id: actionTimeout
-    // Must outlast NetworkManager's 25s supplicant timeout: a wrong saved
-    // PSK fails with WifiAuthTimeout at ~25s, and that failure has to land
-    // while the action is still tracked to show "Wrong password" and reopen
-    // the passphrase prompt.
-    interval: 30000
+    // Must outlast desktop-network-iwd's 60s connect timeout, so a slow
+    // handshake failure still lands while the action is tracked and can show
+    // "Wrong password" and reopen the passphrase prompt.
+    interval: 65000
     repeat: false
     onTriggered: {
       if (!root.actionKind) return
@@ -962,10 +960,8 @@ Panel {
 
     onPressed: function(b) {
       if (root.opened) root.close()
-      // open() is enough: onOpenedChanged runs refresh(true), which defers the
-      // PHY scan past the first frame. The bare refresh() that used to follow
-      // took the no-scan branch and set scannerEnabled synchronously, undoing
-      // that deferral and stalling the open on NetworkManager's AP flood.
+      // open() is enough: onOpenedChanged runs refresh(true), which also
+      // asks iwd for a scan.
       else root.open()
     }
   }
@@ -1096,7 +1092,7 @@ Panel {
           color: root.bar.foreground
           font.family: root.bar.fontFamily
           font.pixelSize: Style.font.display
-          opacity: root.networkManagerAvailable ? 1.0 : 0.5
+          opacity: root.backendAvailable ? 1.0 : 0.5
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
         }
@@ -1144,7 +1140,7 @@ Panel {
           ToggleSwitch {
             id: powerSwitch
             visible: root.canToggleWifi
-            checked: Networking.wifiEnabled
+            checked: backend.wifiEnabled
             hasCursor: root.toggleHeaderHasCursor
             foreground: root.bar.foreground
             Layout.alignment: Qt.AlignVCenter
@@ -1337,8 +1333,8 @@ Panel {
               PanelToolTip {
                 visible: bandAutoSwitch.containsMouse
                 text: root.bandPinned
-                  ? "Let Wi-Fi pick the band"
-                  : "Stay on " + root.bandLabel(root.bandCurrent)
+                  ? root.bandTooltip("auto")
+                  : root.bandTooltip(root.bandCurrent)
                 fontFamily: root.bar.fontFamily
               }
             }
@@ -1602,9 +1598,7 @@ Panel {
     readonly property bool isConnected: net && net.connected
     readonly property bool isKnown: !!(net && net.known)
     readonly property bool requiresCredentials: net ? root.requiresCredentials(net.security) : false
-    readonly property bool isEnterprise: net
-      ? (net.security === WifiSecurityType.Wpa2Eap || net.security === WifiSecurityType.WpaEap)
-      : false
+    readonly property bool isEnterprise: net ? root.isEnterpriseSecurity(net.security) : false
     readonly property bool canForget: root.canForgetNetwork(net)
     readonly property bool isSelected: root.focusSection === "wifi" && root.selectedIndex === index
     readonly property bool forgetFocused: isSelected && root.wifiActionFocused && canForget
@@ -1621,31 +1615,11 @@ Panel {
     readonly property bool isFailed: root.failureReason !== "" && root.failureSsid === (net ? net.ssid : "")
     readonly property bool isPasswordOpen: root.passwordSsid !== "" && root.passwordSsid === (net ? net.ssid : "")
 
+    // Enterprise rows never open the prompt (see showEnterpriseHint), so
+    // this is always a passphrase.
     function submitCredentials() {
-      if (!net || root.busy || root.passwordText.length === 0) return
-      if (!isEnterprise) return root.connectWithPassphrase(net.ssid, root.passwordText)
-      if (root.identityText.length > 0) root.connectEnterprise(net.ssid, root.identityText, root.passwordText)
-    }
-
-    Connections {
-      target: row.net ? root.networkForSsid(row.net.ssid) : null
-      function onConnectionFailed(reason) {
-        // Background auto-connect retries fire this too; only reprompt for
-        // the connect started from this panel. Checked before
-        // failNetworkAction, which clears the action state.
-        var ours = root.actionKind === "connect" && root.actionSsid === (row.net.ssid || "")
-        root.failNetworkAction(root.networkForSsid(row.net.ssid), reason)
-        if (ours && root.shouldRepromptPassphrase(reason, row.requiresCredentials)) root.openPasswordPrompt(row.net.ssid)
-      }
-      function onConnectedChanged() {
-        if (row.net) root.checkActionCompletion(root.networkForSsid(row.net.ssid))
-      }
-      function onKnownChanged() {
-        if (row.net) root.checkActionCompletion(root.networkForSsid(row.net.ssid))
-      }
-      function onStateChangingChanged() {
-        if (row.net) root.checkActionCompletion(root.networkForSsid(row.net.ssid))
-      }
+      if (!net || root.busy || root.passwordText.length === 0 || isEnterprise) return
+      root.connectWithPassphrase(net.ssid, root.passwordText)
     }
 
     readonly property string statusText: {
@@ -1694,6 +1668,10 @@ Panel {
         root.wifiActionFocused = false
         if (row.isConnected) {
           root.disconnectRow(row.net.ssid)
+          return
+        }
+        if (row.isEnterprise && !row.isKnown) {
+          root.showEnterpriseHint(row.net.ssid)
           return
         }
         if (row.requiresCredentials && !row.isKnown) {
@@ -1836,32 +1814,8 @@ Panel {
       anchors.leftMargin: Style.space(10)
       anchors.rightMargin: Style.space(10)
       anchors.topMargin: Style.space(4)
-      implicitHeight: (idField.visible ? idField.implicitHeight + Style.space(4) : 0) + pwField.implicitHeight + Style.spacing.rowGap
+      implicitHeight: pwField.implicitHeight + Style.spacing.rowGap
       height: implicitHeight
-
-      TextField {
-        id: idField
-        visible: row.isEnterprise && !row.isBusy && !row.isFailed
-        anchors.left: parent.left
-        anchors.right: connectPwBtn.left
-        anchors.top: parent.top
-        anchors.rightMargin: Style.space(6)
-        placeholderText: "Identity (user@domain)"
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
-        foreground: root.bar.foreground
-        horizontalPadding: Style.spacing.controlGap
-        verticalPadding: Style.spacing.controlPaddingY
-        enabled: !row.isBusy
-        text: row.isPasswordOpen ? root.identityText : ""
-
-        onAccepted: pwField.forceActiveFocus()
-        onTextChanged: if (row.isPasswordOpen && text !== root.identityText) root.identityText = text
-        Keys.onEscapePressed: root.cancelPasswordPrompt()
-
-        onVisibleChanged: if (visible) Qt.callLater(forceActiveFocus)
-        Component.onCompleted: if (visible) Qt.callLater(forceActiveFocus)
-      }
 
       TextField {
         id: pwField
@@ -1885,8 +1839,8 @@ Panel {
         onTextChanged: if (row.isPasswordOpen && text !== root.passwordText) root.passwordText = text
         Keys.onEscapePressed: root.cancelPasswordPrompt()
 
-        onVisibleChanged: if (visible && !row.isEnterprise) Qt.callLater(forceActiveFocus)
-        Component.onCompleted: if (visible && !row.isEnterprise) Qt.callLater(forceActiveFocus)
+        onVisibleChanged: if (visible) Qt.callLater(forceActiveFocus)
+        Component.onCompleted: if (visible) Qt.callLater(forceActiveFocus)
       }
 
       BorderSurface {
@@ -1920,7 +1874,7 @@ Panel {
         visible: !row.isBusy && !row.isFailed
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        enabled: row.net && pwField.text.length > 0 && (!row.isEnterprise || idField.text.length > 0)
+        enabled: row.net && pwField.text.length > 0
         iconText: "󰄬"
         tooltipText: "Connect"
         foreground: root.bar.foreground

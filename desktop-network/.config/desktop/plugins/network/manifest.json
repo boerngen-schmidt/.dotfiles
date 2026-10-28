@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "omarchy.network",
+  "id": "desktop.network",
   "name": "Network",
   "version": "1.0.0",
-  "author": "Omarchy",
-  "description": "Wi-Fi list and connection state",
+  "author": "Benjamin Börngen-Schmidt",
+  "description": "Wi-Fi list and connection state on iwd and systemd-networkd",
   "kinds": [
     "bar-widget"
   ],
@@ -13,8 +13,11 @@
   },
   "barWidget": {
     "displayName": "Network",
-    "description": "Wi-Fi list and connection state",
+    "description": "Wi-Fi list and connection state on iwd and systemd-networkd",
     "category": "Network",
     "allowMultiple": false
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.network"
   }
 }

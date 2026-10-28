@@ -57,19 +57,21 @@ function bandLabel(band) {
 // Under Automatic the pills are hidden, so the header carries the live band
 // instead -- "WI-FI BAND: 2.4GHZ". Once a band is pinned the pills are on
 // screen and say it themselves, so the header drops back to a plain label.
+// The preference is iwd-wide, so the title says it covers every network.
 function bandSectionTitle(selected, current) {
-  if (selected !== "auto") return "WI-FI BAND"
+  if (selected !== "auto") return "WI-FI BAND · ALL NETWORKS"
 
   var label = bandLabel(current)
-  if (label === "") return "WI-FI BAND"
+  if (label === "") return "WI-FI BAND · ALL NETWORKS"
 
-  return "WI-FI BAND: " + label.toUpperCase()
+  return "WI-FI BAND: " + label.toUpperCase() + " · ALL NETWORKS"
 }
 
+// Changing it restarts iwd, so every tooltip warns about the reconnect.
 function bandTooltip(band) {
-  if (band === "auto") return "Let Wi-Fi pick the band"
+  if (band === "auto") return "Let Wi-Fi pick the band on all networks (Wi-Fi reconnects briefly)"
   if (!band) return ""
-  return "Stay on " + bandLabel(band)
+  return "Prefer " + bandLabel(band) + " on all networks (Wi-Fi reconnects briefly)"
 }
 
 function parseBandStatus(raw) {
@@ -312,19 +314,6 @@ function canForgetNetwork(network) {
   return !!(network && network.known && !network.connected)
 }
 
-// The password arrives on stdin and reaches nmcli through the scriptable
-// `connection edit` editor -- argv is world-readable in /proc, so the secret
-// must never be an argument (printf is a bash builtin, so no process spawns
-// with it either).
-var enterpriseConnectScript =
-  "u=$(uuidgen); IFS= read -r pw;" +
-  " nmcli connection add type wifi con-name \"$1\" ssid \"$1\" connection.uuid \"$u\"" +
-  " wifi-sec.key-mgmt wpa-eap 802-1x.eap peap 802-1x.phase2-auth mschapv2" +
-  " 802-1x.identity \"$2\" 802-1x.auth-timeout 8 >/dev/null" +
-  " && printf 'set 802-1x.password %s\\nsave\\nquit\\n' \"$pw\" | nmcli connection edit uuid \"$u\" >/dev/null" +
-  " && nmcli connection up uuid \"$u\"" +
-  " || { nmcli connection delete uuid \"$u\" >/dev/null 2>&1; false; }"
-
 function networkFailureReason(reason, needsCredentials, reasons) {
   var r = reasons || {}
   if (needsCredentials && reason === r.NoSecrets) return "Passphrase required"
@@ -373,7 +362,6 @@ if (typeof module !== "undefined") {
     wifiSectionTitle: wifiSectionTitle,
     requiresCredentials: requiresCredentials,
     canForgetNetwork: canForgetNetwork,
-    enterpriseConnectScript: enterpriseConnectScript,
     networkFailureReason: networkFailureReason,
     shouldRepromptPassphrase: shouldRepromptPassphrase
   }
