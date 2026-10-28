@@ -27,6 +27,9 @@ Options:
 Output: stow reports every new link as "LINK: ..." on stderr; if there is
 no such line, nothing was changed. Exit code is non-zero on any error,
 including conflicts with existing files.
+
+Directories are never linked as a whole (--no-folding): stow creates real
+directories and links the files inside them.
 EOF
 }
 
@@ -76,4 +79,6 @@ for package in "${packages[@]}"; do
   fi
 done
 
-exec stow --verbose=1 "${dry_run[@]}" --dir "$repo_dir" --target "$target" "$action" "${packages[@]}"
+# --no-folding: link files, never whole directories, so files programs write
+# into a stowed directory at runtime stay in $HOME instead of the repo.
+exec stow --verbose=1 --no-folding "${dry_run[@]}" --dir "$repo_dir" --target "$target" "$action" "${packages[@]}"

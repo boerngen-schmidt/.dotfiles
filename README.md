@@ -16,6 +16,11 @@ The packages to link into `$HOME` are listed in `.stow-packages`
 The benstop Ansible playbook clones this repo to `~/workspace/personal/dotfiles`
 and runs `stow.sh --target ~`.
 
+`stow.sh` never links a whole directory (`--no-folding`): it creates real
+directories and links only the files. Programs that write into a stowed
+directory at runtime, like the shell's plugin and theme folders under
+`~/.config/desktop`, then write into `$HOME`, not into this checkout.
+
 ## Desktop shell
 
 The bar, notifications, OSD, lock screen, idle handling, polkit agent and
