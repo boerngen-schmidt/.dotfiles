@@ -16,7 +16,7 @@ hl.bind("SUPER + CTRL + B", hl.dsp.exec_cmd("omarchy-shell shell toggle omarchy.
 hl.bind("SUPER + CTRL + D", hl.dsp.exec_cmd("omarchy-shell shell toggle omarchy.monitor"), { description = "Display" })
 hl.bind("SUPER + CTRL + ALT + D", hl.dsp.exec_cmd("omarchy-shell shell toggle omarchy.clock"), { description = "Calendar" })
 hl.bind("SUPER + CTRL + W", hl.dsp.exec_cmd("omarchy-shell shell toggle desktop.network"), { description = "Network" })
-hl.bind("SUPER + CTRL + P", hl.dsp.exec_cmd("omarchy-shell shell toggle omarchy.power"), { description = "Power" })
+hl.bind("SUPER + CTRL + P", hl.dsp.exec_cmd("omarchy-shell shell toggle desktop.power"), { description = "Power" })
 
 -- SUPER + CTRL + [1-9] opens the bar's right-section panels by position
 for panel = 1, 9 do
