@@ -125,8 +125,8 @@ Item {
       pwProc.running = false
     }
     qrProc.command = requestedIface
-      ? ["omarchy-network-qr", "--meta", requestedIface]
-      : ["omarchy-network-qr", "--meta"]
+      ? ["desktop-network-qr", "--meta", requestedIface]
+      : ["desktop-network-qr", "--meta"]
     qrProc.running = true
   }
 
@@ -150,7 +150,7 @@ Item {
     // Only a deliberate new lookup lowers the canceled-fetch guard, right as
     // it launches -- see the pwProc comment.
     pwExpectedStop = false
-    pwProc.command = ["omarchy-network-password", iface]
+    pwProc.command = ["desktop-network-password", iface]
     pwProc.running = true
   }
 

@@ -42,7 +42,7 @@
           "id": "omarchy.bluetooth"
         },
         {
-          "id": "omarchy.network"
+          "id": "desktop.network"
         },
         {
           "id": "omarchy.audio"
@@ -63,7 +63,6 @@
     "omarchy.disk-speedtest",
     "omarchy.emojis",
     "omarchy.reminders",
-    "omarchy.speedtest",
-    "omarchy.wifiqr"
+    "omarchy.speedtest"
   ]
 }
