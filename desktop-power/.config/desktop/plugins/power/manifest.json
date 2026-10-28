@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "omarchy.power",
+  "id": "desktop.power",
   "name": "Power",
   "version": "1.0.0",
-  "author": "Omarchy",
-  "description": "Battery, power profile, and system stats",
+  "author": "Benjamin Börngen-Schmidt",
+  "description": "Battery, TLP power profile, and system stats",
   "kinds": [
     "bar-widget"
   ],
@@ -13,8 +13,11 @@
   },
   "barWidget": {
     "displayName": "Power",
-    "description": "Battery, power profile, and system stats",
+    "description": "Battery, TLP power profile, and system stats",
     "category": "System",
     "allowMultiple": false
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.power"
   }
 }

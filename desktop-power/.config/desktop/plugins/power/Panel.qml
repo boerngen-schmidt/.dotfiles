@@ -7,10 +7,13 @@ import qs.Commons as Commons
 import qs.Ui
 import "Model.js" as Model
 
+// Omarchy's power panel on TLP: power profiles go through desktop-power-profiles
+// (tlpctl from tlp-pd) instead of powerprofilesctl. TLP picks the profile on
+// charger changes, so a choice here holds until the next one.
 Panel {
   id: root
-  moduleName: "omarchy.power"
-  ipcTarget: "omarchy.power"
+  moduleName: "desktop.power"
+  ipcTarget: "desktop.power"
   // manageIpc: false so this panel can own the single IpcHandler the target
   // permits — needed for the togglePercentage method below.
   manageIpc: false
@@ -166,7 +169,7 @@ Panel {
 
   function setProfile(profile) {
     if (!profile || actionProc.running) return
-    actionProc.command = ["omarchy-powerprofiles-set", root.discharging ? "battery" : "ac", profile]
+    actionProc.command = ["desktop-power-profiles", "set", profile]
     actionProc.running = true
   }
 
@@ -176,7 +179,7 @@ Panel {
   }
 
   IpcHandler {
-    target: "omarchy.power"
+    target: "desktop.power"
 
     function open() { root.open() }
     function close() { root.close() }
@@ -214,7 +217,7 @@ Panel {
 
   Process {
     id: profilesProc
-    command: ["omarchy-powerprofiles-list", "--active-state"]
+    command: ["desktop-power-profiles", "list", "--active-state"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.updateProfiles(text) }
   }
 
